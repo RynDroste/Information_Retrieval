@@ -22,7 +22,7 @@ This project is designed to:
 3. **Index** data into Solr for search functionality
 4. **Display** data through a frontend interface
 
-Currently, the scraping component is complete. Data cleaning, Solr integration, and frontend are in development.
+All components are complete and ready to use!
 
 ## ✨ Features
 
@@ -31,8 +31,8 @@ Currently, the scraping component is complete. Data cleaning, Solr integration, 
 - ✅ Data export to JSON format
 - ✅ Result viewing and statistics
 - ✅ Data cleaning and normalization
-- 🔄 Solr integration (planned)
-- 🔄 Frontend display (planned)
+- ✅ Solr integration for search functionality
+- ✅ Frontend web interface with search
 
 ## 📦 Requirements
 
@@ -57,6 +57,7 @@ This will install:
 - `requests` - For HTTP requests
 - `beautifulsoup4` - For HTML parsing
 - `lxml` - For faster HTML parsing
+- `pysolr` - For Solr integration (optional, only needed for Solr search)
 
 ## 📖 Usage
 
@@ -170,7 +171,79 @@ Issues fixed:
 - Cleaned data is saved to `data/cleaned_data.json`
 - Original scraped data remains in `data/scraped_data.json`
 
-### 4. Accessing Data Programmatically
+### 4. Indexing Data into Solr
+
+Index cleaned data into Apache Solr for advanced search functionality:
+
+**Prerequisites:**
+- Apache Solr installed and running
+- A Solr core named `ramen_articles` created
+
+See `solr_setup.md` for detailed Solr setup instructions.
+
+**Index data:**
+```bash
+python3 solr_indexer.py
+```
+
+**Options:**
+```bash
+# Custom Solr URL
+python3 solr_indexer.py --solr-url http://localhost:8983/solr/ramen_articles
+
+# Keep existing documents (append instead of replacing)
+python3 solr_indexer.py --keep-existing
+```
+
+**What it does:**
+- Connects to Solr instance
+- Clears existing documents (unless `--keep-existing` is used)
+- Indexes all articles from `data/cleaned_data.json`
+- Commits changes to Solr
+- Tests search functionality
+
+**Example output:**
+```
+Connecting to Solr at http://localhost:8983/solr/ramen_articles...
+✓ Successfully connected to Solr
+Loaded 15 articles from data/cleaned_data.json
+
+Indexing 15 articles...
+✓ Indexed batch 1 (10 documents)
+✓ Indexed batch 2 (5 documents)
+✓ Committed changes to Solr
+```
+
+### 5. Using the Frontend
+
+Open the web interface to search and browse articles:
+
+**Option 1: Simple HTTP Server (Recommended)**
+
+```bash
+# Python 3
+python3 -m http.server 8000
+
+# Or Python 2
+python -m SimpleHTTPServer 8000
+```
+
+Then open http://localhost:8000/frontend/ in your browser.
+
+**Option 2: Any Web Server**
+
+Place the `frontend/` directory in your web server's document root.
+
+**Features:**
+- 🔍 Search articles by keywords
+- 📊 View article statistics
+- 🎯 Sort by relevance, date, or title
+- 🌐 Two search modes:
+  - **Local Search**: Searches JSON file directly (works offline)
+  - **Solr Search**: Uses Solr for advanced search (requires Solr running)
+- 📱 Responsive design for mobile and desktop
+
+### 6. Accessing Data Programmatically
 
 You can also use the data in your own Python scripts:
 
@@ -203,7 +276,13 @@ Information_Retrieval/
 ├── requirements.txt              # Python dependencies
 ├── scraper.py                   # Main scraping script
 ├── data_cleaner.py              # Data cleaning script
+├── solr_indexer.py              # Solr indexing script
+├── solr_setup.md                # Solr setup guide
 ├── view_results.py              # Result viewing tool
+├── frontend/                    # Web interface
+│   ├── index.html              # Main HTML page
+│   ├── styles.css              # CSS styles
+│   └── app.js                  # JavaScript application
 ├── data/
 │   ├── scraped_data.json        # Raw scraped data (generated)
 │   └── cleaned_data.json        # Cleaned data (generated)
@@ -295,28 +374,43 @@ After cleaning, the data format is similar but with improvements:
 pip3 install --upgrade -r requirements.txt
 ```
 
-## 🎯 Next Steps
+## 🎯 Project Status
 
-This project is part of a larger information retrieval system. Future development includes:
+This project is a complete information retrieval system with the following components:
 
-1. ✅ **Data Cleaning** (`data_cleaner.py`) - **COMPLETED**
+1. ✅ **Web Scraping** (`scraper.py`) - **COMPLETED**
+   - ✅ Scrape articles from 5AM Ramen website
+   - ✅ Extract article metadata
+   - ✅ Save to JSON format
+
+2. ✅ **Data Cleaning** (`data_cleaner.py`) - **COMPLETED**
    - ✅ Remove HTML artifacts
    - ✅ Normalize text
    - ✅ Standardize date formats
    - ✅ Filter invalid articles
    - ✅ Handle encoding issues
 
-2. **Solr Integration** (`solr_indexer.py`)
-   - Set up Solr instance
-   - Create schema
-   - Index cleaned data
-   - Implement search functionality
+3. ✅ **Solr Integration** (`solr_indexer.py`) - **COMPLETED**
+   - ✅ Index cleaned data into Solr
+   - ✅ Search functionality
+   - ✅ Batch processing
+   - ✅ Error handling
 
-3. **Frontend Display** (`frontend/`)
-   - Web interface for browsing articles
-   - Search functionality
-   - Filtering and sorting
-   - Responsive design
+4. ✅ **Frontend Display** (`frontend/`) - **COMPLETED**
+   - ✅ Web interface for browsing articles
+   - ✅ Search functionality (local and Solr)
+   - ✅ Filtering and sorting
+   - ✅ Responsive design
+   - ✅ Highlighted search results
+
+## 🚀 Future Enhancements
+
+Potential improvements:
+- Advanced Solr query features (faceting, highlighting)
+- User authentication and favorites
+- Article recommendations
+- Export functionality (PDF, CSV)
+- Analytics dashboard
 
 ## 📝 Notes
 

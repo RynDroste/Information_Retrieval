@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>5AM Ramen - Article Search</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🍜 5AM Ramen Blog</h1>
+            <p class="subtitle">Search and explore ramen articles from across Japan</p>
+        </header>
+
+        <div class="search-section">
+            <div class="search-box">
+                <input 
+                    type="text" 
+                    id="searchInput" 
+                    placeholder="Search articles (e.g., 'ramen', 'tokyo', 'tsukemen')..."
+                    autocomplete="off"
+                >
+                <button id="searchBtn">Search</button>
+            </div>
+            <div class="search-options">
+                <label>
+                    <input type="radio" name="searchMode" value="local" checked>
+                    Local Search (JSON)
+                </label>
+                <label>
+                    <input type="radio" name="searchMode" value="solr">
+                    Solr Search
+                </label>
+            </div>
+        </div>
+
+        <div class="stats" id="stats">
+            <span id="resultCount">0</span> articles available
+        </div>
+
+        <div class="filters">
+            <select id="sortBy">
+                <option value="relevance">Sort by Relevance</option>
+                <option value="date-desc">Date (Newest First)</option>
+                <option value="date-asc">Date (Oldest First)</option>
+                <option value="title-asc">Title (A-Z)</option>
+            </select>
+        </div>
+
+        <div id="loading" class="loading" style="display: none;">
+            <div class="spinner"></div>
+            <p>Searching...</p>
+        </div>
+
+        <div id="results" class="results"></div>
+
+        <div id="noResults" class="no-results" style="display: none;">
+            <p>No articles found. Try a different search term.</p>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
+
