@@ -98,22 +98,28 @@ class ArticleSearch {
         this.filteredArticles = this.articles.filter(article => {
             const title = (article.title || '').toLowerCase();
             const content = (article.content || '').toLowerCase();
+            const menuItem = (article.menu_item || '').toLowerCase();
+            const menuCategory = (article.menu_category || '').toLowerCase();
             const url = (article.url || '').toLowerCase();
 
-            // Check if all query words appear in title, content, or URL
+            // Check if all query words appear in title, content, menu_item, menu_category, or URL
             return queryWords.every(word => 
                 title.includes(word) || 
                 content.includes(word) || 
+                menuItem.includes(word) ||
+                menuCategory.includes(word) ||
                 url.includes(word)
             );
         });
 
-        // Sort by relevance (simple: count matches in title)
+        // Sort by relevance (simple: count matches in title and menu_item)
         this.filteredArticles.sort((a, b) => {
             const aTitle = (a.title || '').toLowerCase();
             const bTitle = (b.title || '').toLowerCase();
-            const aMatches = queryWords.filter(w => aTitle.includes(w)).length;
-            const bMatches = queryWords.filter(w => bTitle.includes(w)).length;
+            const aMenuItem = (a.menu_item || '').toLowerCase();
+            const bMenuItem = (b.menu_item || '').toLowerCase();
+            const aMatches = queryWords.filter(w => aTitle.includes(w) || aMenuItem.includes(w)).length;
+            const bMatches = queryWords.filter(w => bTitle.includes(w) || bMenuItem.includes(w)).length;
             return bMatches - aMatches;
         });
 
@@ -123,7 +129,7 @@ class ArticleSearch {
 
     async searchSolr(query) {
         try {
-            const solrUrl = 'http://localhost:8983/solr/ramen_articles/select';
+            const solrUrl = 'http://localhost:8983/solr/afuri_menu/select';
             const params = new URLSearchParams({
                 q: query,
                 rows: 50,
@@ -138,8 +144,11 @@ class ArticleSearch {
                     url: doc.url || '',
                     title: doc.title || '',
                     content: doc.content || '',
+                    section: doc.section || '',
+                    menu_item: doc.menu_item || '',
+                    menu_category: doc.menu_category || '',
+                    store_name: doc.store_name || '',
                     date: doc.date || '',
-                    author: doc.author || '',
                     tags: doc.tags || []
                 }));
 
@@ -160,22 +169,21 @@ class ArticleSearch {
         const sortBy = document.getElementById('sortBy').value;
 
         switch (sortBy) {
-            case 'date-desc':
-                this.filteredArticles.sort((a, b) => {
-                    const dateA = a.date || '0000-00-00';
-                    const dateB = b.date || '0000-00-00';
-                    return dateB.localeCompare(dateA);
-                });
-                break;
-            case 'date-asc':
-                this.filteredArticles.sort((a, b) => {
-                    const dateA = a.date || '9999-99-99';
-                    const dateB = b.date || '9999-99-99';
-                    return dateA.localeCompare(dateB);
-                });
-                break;
             case 'title-asc':
                 this.filteredArticles.sort((a, b) => {
+                    const titleA = (a.title || '').toLowerCase();
+                    const titleB = (b.title || '').toLowerCase();
+                    return titleA.localeCompare(titleB);
+                });
+                break;
+            case 'category':
+                this.filteredArticles.sort((a, b) => {
+                    const catA = (a.menu_category || '').toLowerCase();
+                    const catB = (b.menu_category || '').toLowerCase();
+                    if (catA !== catB) {
+                        return catA.localeCompare(catB);
+                    }
+                    // If same category, sort by title
                     const titleA = (a.title || '').toLowerCase();
                     const titleB = (b.title || '').toLowerCase();
                     return titleA.localeCompare(titleB);
@@ -203,15 +211,58 @@ class ArticleSearch {
             const highlightedTitle = this.highlightText(article.title, queryWords);
             const contentPreview = this.getContentPreview(article.content, queryWords, 300);
             const date = article.date ? this.formatDate(article.date) : '';
+            const menuItem = article.menu_item || '';
+            const menuCategory = article.menu_category || '';
+            const storeName = article.store_name || '';
+            const tags = article.tags || [];
+            const section = article.section || '';
+
+            // For menu items: first line shows "菜单: Ramen", second line shows "店铺: #afuri"
+            // For stores: only show "店铺: #afuri"
+            let categoryLine = '';
+            let tagsLine = '';
+            
+            if (section === 'Menu' && menuCategory) {
+                // Menu items: first line shows "菜单: Ramen"
+                categoryLine = `<div class="category-line">
+                    <span class="section-label">菜单:</span>
+                    <span class="category-badge category-${menuCategory.toLowerCase().replace(' ', '-')}">${menuCategory}</span>
+                </div>`;
+                
+                // Second line shows "店铺: #afuri"
+                tagsLine = tags.length > 0 ? `
+                    <div class="tags-line">
+                        <span class="section-label">店铺:</span>
+                        ${tags.map(tag => `<span class="tag-badge">#${tag}</span>`).join('')}
+                    </div>
+                ` : '';
+            } else if (section === 'Store Information') {
+                // Stores: only show "店铺: #afuri"
+                tagsLine = tags.length > 0 ? `
+                    <div class="tags-line">
+                        <span class="section-label">店铺:</span>
+                        ${tags.map(tag => `<span class="tag-badge">#${tag}</span>`).join('')}
+                    </div>
+                ` : '';
+            } else if (section === 'Brand Information') {
+                // Brand: show "品牌: #afuri"
+                tagsLine = tags.length > 0 ? `
+                    <div class="tags-line">
+                        <span class="section-label">品牌:</span>
+                        ${tags.map(tag => `<span class="tag-badge">#${tag}</span>`).join('')}
+                    </div>
+                ` : '';
+            }
 
             return `
                 <div class="article-card">
                     <h2><a href="${article.url}" target="_blank">${highlightedTitle}</a></h2>
+                    ${categoryLine}
+                    ${tagsLine}
                     <div class="article-meta">
+                        ${menuItem && menuItem !== article.title ? `<span>🍜 ${menuItem}</span>` : ''}
+                        ${storeName ? `<span>📍 ${storeName}</span>` : ''}
                         ${date ? `<span>📅 ${date}</span>` : ''}
-                        ${article.author ? `<span>✍️ ${article.author}</span>` : ''}
-                        ${article.tags && article.tags.length > 0 ? 
-                            `<span>🏷️ ${article.tags.join(', ')}</span>` : ''}
                     </div>
                     <div class="article-content">${contentPreview}</div>
                 </div>
@@ -283,6 +334,15 @@ class ArticleSearch {
         const div = document.createElement('div');
         div.textContent = text;
         return div.innerHTML;
+    }
+
+    getSectionLabel(section) {
+        const sectionLabels = {
+            'Menu': '菜单',
+            'Store Information': '店铺',
+            'Brand Information': '品牌'
+        };
+        return sectionLabels[section] || section;
     }
 
     displayStats() {

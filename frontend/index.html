@@ -3,14 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>5AM Ramen - Article Search</title>
+    <title>AFURI Menu Search</title>
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
     <div class="container">
         <header>
-            <h1>🍜 5AM Ramen Blog</h1>
-            <p class="subtitle">Search and explore ramen articles from across Japan</p>
+            <h1>🍜 AFURI Menu Search</h1>
+            <p class="subtitle">Search and explore AFURI ramen menu items</p>
         </header>
 
         <div class="search-section">
@@ -18,7 +18,7 @@
                 <input 
                     type="text" 
                     id="searchInput" 
-                    placeholder="Search articles (e.g., 'ramen', 'tokyo', 'tsukemen')..."
+                    placeholder="Search menu items (e.g., 'yuzu', 'ramen', 'tsukemen', 'chashu')..."
                     autocomplete="off"
                 >
                 <button id="searchBtn">Search</button>
@@ -36,15 +36,14 @@
         </div>
 
         <div class="stats" id="stats">
-            <span id="resultCount">0</span> articles available
+            <span id="resultCount">0</span> menu items available
         </div>
 
         <div class="filters">
             <select id="sortBy">
                 <option value="relevance">Sort by Relevance</option>
-                <option value="date-desc">Date (Newest First)</option>
-                <option value="date-asc">Date (Oldest First)</option>
                 <option value="title-asc">Title (A-Z)</option>
+                <option value="category">Category</option>
             </select>
         </div>
 

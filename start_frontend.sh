@@ -1,9 +1,17 @@
 #!/bin/bash
 # Quick start script for the frontend
 
-echo "Starting web server for frontend..."
-echo "Open http://localhost:8000/frontend/ in your browser"
+echo "=========================================="
+echo "🍜 AFURI Menu Search - Frontend Server"
+echo "=========================================="
+echo ""
+echo "Starting frontend server on port 8000..."
+echo ""
+echo "📱 Open in your browser:"
+echo "   http://localhost:8000/frontend/"
+echo ""
 echo "Press Ctrl+C to stop the server"
+echo "=========================================="
 echo ""
 
 cd "$(dirname "$0")"

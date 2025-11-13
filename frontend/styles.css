@@ -28,6 +28,109 @@ header {
     text-align: center;
 }
 
+.category-badge {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.category-ramen {
+    background: #ff6b6b;
+    color: white;
+}
+
+.category-tsukemen {
+    background: #4ecdc4;
+    color: white;
+}
+
+.category-noodles {
+    background: #ffe66d;
+    color: #333;
+}
+
+.category-side-dishes {
+    background: #95e1d3;
+    color: #333;
+}
+
+.category-drinks {
+    background: #a8e6cf;
+    color: #333;
+}
+
+.category-chi-yu {
+    background: #ffd93d;
+    color: #333;
+}
+
+/* Category and Tags Lines */
+.category-line {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.tags-line {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 8px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.section-label {
+    display: inline-flex;
+    align-items: center;
+    font-size: 12px;
+    font-weight: 600;
+    color: #495057;
+    white-space: nowrap;
+}
+
+.section-label::after {
+    content: '';
+    margin: 0;
+}
+
+.tag-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 8px;
+    border-radius: 12px;
+    font-size: 10px;
+    font-weight: 500;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    box-shadow: 0 2px 4px rgba(102, 126, 234, 0.2);
+    transition: transform 0.2s, box-shadow 0.2s;
+    cursor: default;
+}
+
+.tag-badge:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 3px 6px rgba(102, 126, 234, 0.3);
+}
+
+.tag-badge::before {
+    content: '';
+    display: inline-block;
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.8);
+    margin-right: 3px;
+}
+
 header h1 {
     font-size: 2.5em;
     margin-bottom: 10px;

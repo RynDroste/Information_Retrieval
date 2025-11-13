@@ -18,7 +18,7 @@ except ImportError:
     sys.exit(1)
 
 class SolrIndexer:
-    def __init__(self, solr_url='http://localhost:8983/solr/ramen_articles', data_file='data/cleaned_data.json'):
+    def __init__(self, solr_url='http://localhost:8983/solr/afuri_menu', data_file='data/cleaned_data.json'):
         self.solr_url = solr_url
         self.data_file = data_file
         self.solr = None
@@ -42,8 +42,8 @@ class SolrIndexer:
             print(f"✗ Failed to connect to Solr: {e}")
             print("\nPlease make sure:")
             print("1. Solr is running (check with: solr status)")
-            print("2. A core named 'ramen_articles' exists")
-            print("3. The URL is correct (default: http://localhost:8983/solr/ramen_articles)")
+            print("2. A core named 'afuri_menu' exists")
+            print("3. The URL is correct (default: http://localhost:8983/solr/afuri_menu)")
             return False
     
     def load_data(self):
@@ -62,25 +62,33 @@ class SolrIndexer:
     
     def prepare_document(self, article, index):
         """Prepare article for Solr indexing"""
+        # Use menu_item or title for unique ID
+        unique_id = article.get('menu_item') or article.get('title', f"item_{index}")
         doc = {
-            'id': f"article_{index}",  # Unique ID
+            'id': f"{article.get('section', 'menu')}_{index}_{unique_id[:50]}".replace(' ', '_'),
             'url': article.get('url', ''),
             'title': article.get('title', ''),
             'content': article.get('content', ''),
+            'section': article.get('section', ''),
         }
+        
+        # Add menu-specific fields
+        if 'menu_item' in article and article['menu_item']:
+            doc['menu_item'] = article['menu_item']
+        
+        if 'menu_category' in article and article['menu_category']:
+            doc['menu_category'] = article['menu_category']
+        
+        # Add store information if exists
+        if 'store_name' in article and article['store_name']:
+            doc['store_name'] = article['store_name']
         
         # Add optional fields if they exist
         if 'date' in article and article['date']:
             doc['date'] = article['date']
         
-        if 'author' in article and article['author']:
-            doc['author'] = article['author']
-        
         if 'tags' in article and article['tags']:
             doc['tags'] = article['tags']
-        
-        if 'categories' in article and article['categories']:
-            doc['categories'] = article['categories']
         
         return doc
     
@@ -174,12 +182,17 @@ class SolrIndexer:
         
         # Test search
         print("\n🔍 Testing search functionality...")
-        test_query = "ramen"
+        test_query = "yuzu"
         results = self.search(test_query, rows=3)
         if results:
             print(f"Found {results.hits} results for query '{test_query}'")
             for i, result in enumerate(results, 1):
-                print(f"  {i}. {result.get('title', 'No title')[:60]}...")
+                title = result.get('title', 'No title')[:60]
+                category = result.get('menu_category', '')
+                if category:
+                    print(f"  {i}. {title} ({category})")
+                else:
+                    print(f"  {i}. {title}")
         else:
             print("Search test failed")
 
@@ -187,8 +200,8 @@ def main():
     import argparse
     
     parser = argparse.ArgumentParser(description='Index articles into Solr')
-    parser.add_argument('--solr-url', default='http://localhost:8983/solr/ramen_articles',
-                       help='Solr URL (default: http://localhost:8983/solr/ramen_articles)')
+    parser.add_argument('--solr-url', default='http://localhost:8983/solr/afuri_menu',
+                       help='Solr URL (default: http://localhost:8983/solr/afuri_menu)')
     parser.add_argument('--data-file', default='data/cleaned_data.json',
                        help='Path to cleaned data file (default: data/cleaned_data.json)')
     parser.add_argument('--keep-existing', action='store_true',

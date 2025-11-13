@@ -1,6 +1,6 @@
 # Solr Setup Guide
 
-This guide will help you set up Apache Solr for indexing and searching the scraped articles.
+This guide will help you set up Apache Solr for indexing and searching the AFURI menu data.
 
 ## Prerequisites
 
@@ -47,11 +47,11 @@ You should see Solr running on port 8983.
 ### 3. Create Solr Core
 
 ```bash
-# Create a core named 'ramen_articles'
-solr create -c ramen_articles
+# Create a core named 'afuri_menu'
+solr create -c afuri_menu
 
 # Or if installed manually
-./bin/solr create -c ramen_articles
+./bin/solr create -c afuri_menu
 ```
 
 ### 4. Configure Schema (Optional)
@@ -59,13 +59,14 @@ solr create -c ramen_articles
 The default schema should work, but you can customize it. The script expects these fields:
 
 - `id` (string, required) - Unique document ID
-- `url` (string) - Article URL
-- `title` (text) - Article title (searchable)
-- `content` (text) - Article content (searchable)
-- `date` (string) - Publication date
-- `author` (string) - Author name
-- `tags` (string, multi-valued) - Article tags
-- `categories` (string, multi-valued) - Article categories
+- `url` (string) - Menu page URL
+- `title` (text) - Menu item title (searchable)
+- `content` (text) - Menu item description (searchable)
+- `section` (string) - Section type (e.g., "Menu")
+- `menu_item` (text) - Menu item name (searchable)
+- `menu_category` (string) - Menu category (Ramen, Tsukemen, Noodles, Side Dishes, Drinks, Chi-yu)
+- `store_name` (string) - Store name (if applicable)
+- `date` (string) - Optional date field
 
 ### 5. Install Python Dependencies
 
@@ -89,7 +90,7 @@ python3 solr_indexer.py
 ### Custom Solr URL
 
 ```bash
-python3 solr_indexer.py --solr-url http://localhost:8983/solr/ramen_articles
+python3 solr_indexer.py --solr-url http://localhost:8983/solr/afuri_menu
 ```
 
 ### Keep Existing Documents
@@ -102,15 +103,15 @@ python3 solr_indexer.py --keep-existing
 
 ### Using Solr Admin UI
 
-1. Open http://localhost:8983/solr/#/ramen_articles/query
+1. Open http://localhost:8983/solr/#/afuri_menu/query
 2. Click "Execute Query" to see all documents
-3. Try searching with: `q=ramen`
+3. Try searching with: `q=yuzu` or `q=ramen`
 
 ### Using Command Line
 
 ```bash
 # Search via curl
-curl "http://localhost:8983/solr/ramen_articles/select?q=ramen&rows=5"
+curl "http://localhost:8983/solr/afuri_menu/select?q=yuzu&rows=5"
 ```
 
 ## Troubleshooting
@@ -122,7 +123,7 @@ solr start
 
 ### Core doesn't exist
 ```bash
-solr create -c ramen_articles
+solr create -c afuri_menu
 ```
 
 ### Connection refused
