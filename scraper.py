@@ -39,9 +39,9 @@ class RamenScraper:
         # Menu categories
         categories = {
             'Ramen': ['Yuzu Shio Ramen', 'Yuzu Shoyu Ramen', 'Shio Ramen', 'Shoyu Ramen', 
-                     'Yuzu Ratan Ramen', 'Rainbow Vegan Ramen', 'Summer Limited', 'Seasonal Limited'],
-            'Tsukemen': ['Ama-tsuyu Tsukemen', 'Yuzu-tsuyu Tsukemen', 'Kara-tsuyu Tsukemen', 
-                        'Yuzu-kara-tsuyu Tsukemen', 'つけ麺', 'Tsukemen'],
+                     'Yuzu Ratan Ramen', 'Rainbow Vegan Ramen', 'Summer Limited', 'Seasonal Limited',
+                     'Ama-tsuyu Tsukemen', 'Yuzu-tsuyu Tsukemen', 'Kara-tsuyu Tsukemen', 
+                     'Yuzu-kara-tsuyu Tsukemen', 'つけ麺', 'Tsukemen'],
             'Chi-yu': ['Chi-yu', '鶏油', 'Tanrei', 'Maroaji', '淡麗', 'まろ味'],
             'Noodles': ['Gokuboso Men', 'Temomi Men', 'Konnyaku Men', '麺'],
             'Side Dishes': ['Chashu', 'Nitamago', 'Menma', 'Nori', 'Mizuna', 'Gohan', 'チャーシュー', 'ごはん'],
@@ -136,9 +136,7 @@ class RamenScraper:
                     text = elem.get_text().strip()
                     if item_name in text and len(text) > len(item_name) + 10:
                         item_category = 'Ramen'
-                        if 'Tsukemen' in item_name:
-                            item_category = 'Tsukemen'
-                        elif 'Men' in item_name and 'Tsukemen' not in item_name:
+                        if 'Men' in item_name and 'Tsukemen' not in item_name and 'Ramen' not in item_name:
                             item_category = 'Noodles'
                         elif 'Gohan' in item_name:
                             item_category = 'Side Dishes'
@@ -494,20 +492,4 @@ class RamenScraper:
         print(f"\nData saved to: {filepath}")
         return filepath
 
-def main():
-    scraper = RamenScraper()
-    
-    # Scrape menu page
-    scraper.scrape_menu_page()
-    
-    # Scrape findus page for store information
-    scraper.scrape_store_information()
-    
-    # Scrape about page for brand information
-    scraper.scrape_brand_info()
-    
-    # Save all data
-    scraper.save_data()
-
-if __name__ == '__main__':
-    main()
+# This file is used as a module only. Use run_pipeline.py to run the complete pipeline.

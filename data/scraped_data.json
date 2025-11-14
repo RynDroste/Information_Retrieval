@@ -159,7 +159,7 @@
     "content": "AFURI Ama-tsuyu Tsukemen\n国産の丸鶏・香味野菜をベースに魚介醤油で甘めに仕上げたつけダレ。冷製ダレが魚介醤油の豊かな風味を引き出します。\nchicken & dashi based sweet dipping Tare, half nitamago, chashu, mizuna, menma, nori",
     "section": "Menu",
     "menu_item": "Ama-tsuyu Tsukemen",
-    "menu_category": "Tsukemen",
+    "menu_category": "Ramen",
     "date": "",
     "author": "",
     "tags": [
@@ -173,7 +173,7 @@
     "content": "Yuzu-tsuyu Tsukemen\nシンプルな甘露に、AFURIらしく柚子を加えた一品。味と香りの余韻までお楽しみいただけます。\nchicken & dashi based sweet dipping Tare, yuzu, half nitamago, chashu, mizuna, menma, nori",
     "section": "Menu",
     "menu_item": "Yuzu-tsuyu Tsukemen",
-    "menu_category": "Tsukemen",
+    "menu_category": "Ramen",
     "date": "",
     "author": "",
     "tags": [
@@ -187,7 +187,7 @@
     "content": "AFURI Kara-tsuyu Tsukemen\n唐辛子パウダーを纏った麺に、自家製辣油を加えた一品。辛さの中に、じんわりと深い旨味を感じる一品。\nchicken & dashi based spicy dipping Tare, half nitamago, chashu, mizuna, menma, nori, chili powder",
     "section": "Menu",
     "menu_item": "Kara-tsuyu Tsukemen",
-    "menu_category": "Tsukemen",
+    "menu_category": "Ramen",
     "date": "",
     "author": "",
     "tags": [
@@ -201,7 +201,7 @@
     "content": "AFURI Yuzu-kara-tsuyu Tsukemen\n唐辛子パウダーを纏った麺に、自家製辣油を加えた一品。辛さの中に、じんわりと深い旨味を感じる一品。\nchicken & dashi based spicy dipping Tare, yuzu, half nitamago, chashu, mizuna, menma, nori, chili powder",
     "section": "Menu",
     "menu_item": "Yuzu-kara-tsuyu Tsukemen",
-    "menu_category": "Tsukemen",
+    "menu_category": "Ramen",
     "date": "",
     "author": "",
     "tags": [
@@ -229,7 +229,7 @@
     "content": "AFURI つけ麺の麺は、お好みで「こんにゃく太麺」へご変更いただけます。",
     "section": "Menu",
     "menu_item": "つけ麺の麺は、お好みで「こんにゃく太麺」へご変更いただけます。",
-    "menu_category": "Tsukemen",
+    "menu_category": "Ramen",
     "date": "",
     "author": "",
     "tags": [
@@ -271,7 +271,7 @@
     "content": "AFURI Konnyaku Men\n\n食物繊維が豊富で、低カロリーな国産こんにゃく麺。隠し味の白出汁が効いています。らーめんには「細麺タイプ」、つけ麺には「太麺タイプ」がオススメ。\nMade from Japanese yam root and housemade white-dashi, konjac noodle will be your health-friendly alternative also rich in fiber!",
     "section": "Menu",
     "menu_item": "Konnyaku Men",
-    "menu_category": "Tsukemen",
+    "menu_category": "Ramen",
     "date": "",
     "author": "",
     "tags": [
@@ -579,7 +579,7 @@
     "content": "AFURI Tsukemen also known as dipping ramen, comes with thick bouncy noodles and cold dipping Tare in separate bowls.",
     "section": "Menu",
     "menu_item": "Tsukemen also known as dipping ramen, comes with t",
-    "menu_category": "Tsukemen",
+    "menu_category": "Ramen",
     "date": "",
     "author": "",
     "tags": [
@@ -649,7 +649,7 @@
     "content": "AFURI 食物繊維が豊富で、低カロリーな国産こんにゃく麺。隠し味の白出汁が効いています。らーめんには「細麺タイプ」、つけ麺には「太麺タイプ」がオススメ。",
     "section": "Menu",
     "menu_item": "食物繊維が豊富で、低カロリーな国産こんにゃく麺。隠し味の白出汁が効いています。らーめんには「細麺タイ",
-    "menu_category": "Tsukemen",
+    "menu_category": "Ramen",
     "date": "",
     "author": "",
     "tags": [

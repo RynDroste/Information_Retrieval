@@ -65,11 +65,18 @@ class ArticleSearch {
         }
         
         if (this.activeFilters.category) {
-            queryParts.push(`menu_category:"${this.activeFilters.category}"`);
+            // Escape the category value for Solr query
+            const categoryValue = this.activeFilters.category.trim().replace(/[+\-&|!(){}[\]^"~*?:\\]/g, '\\$&');
+            // Try different query formats for category matching
+            // If field is string type: use exact match with quotes
+            // If field is text type: try without quotes for token matching, or use phrase query
+            // Try phrase query first (works for both string and text fields)
+            queryParts.push(`menu_category:"${categoryValue}"`);
         }
         
         if (this.activeFilters.tag) {
-            queryParts.push(`tags:"${this.activeFilters.tag}"`);
+            const tagValue = this.activeFilters.tag.replace(/"/g, '\\"');
+            queryParts.push(`tags:"${tagValue}"`);
         }
         
         let finalQuery = '*:*';
@@ -134,6 +141,8 @@ class ArticleSearch {
             wt: 'json'
         });
 
+        console.log('Sending Solr request:', `${solrUrl}?${params}`);
+
         try {
             const response = await fetch(`${solrUrl}?${params}`);
             
@@ -142,6 +151,92 @@ class ArticleSearch {
             }
             
             const data = await response.json();
+            
+            console.log('Solr response:', {
+                numFound: data.response?.numFound,
+                docsCount: data.response?.docs?.length,
+                query: query
+            });
+            
+            // If no results and query contains menu_category with quotes, try without quotes
+            if (data.response?.numFound === 0 && query.includes('menu_category:"')) {
+                console.log('No results with phrase query, trying alternative queries...');
+                // Try query without quotes for text field token matching
+                let altQuery = query.replace(/menu_category:"([^"]+)"/g, 'menu_category:$1');
+                console.log('Alternative query 1 (no quotes):', altQuery);
+                
+                // Extract the category value to try different query formats
+                const categoryMatch = query.match(/menu_category:"([^"]+)"/);
+                if (categoryMatch) {
+                    const categoryValue = categoryMatch[1];
+                    // Try multiple alternative query formats
+                    const altQueries = [
+                        altQuery, // Without quotes
+                        query.replace(/menu_category:"([^"]+)"/g, `menu_category:*${categoryValue}*`), // Wildcard
+                        query.replace(/menu_category:"([^"]+)"/g, `menu_category:${categoryValue.toLowerCase()}`), // Lowercase
+                        query.replace(/menu_category:"([^"]+)"/g, `menu_category:${categoryValue.toUpperCase()}`), // Uppercase
+                    ];
+                    
+                    for (const testQuery of altQueries) {
+                        const altParams = new URLSearchParams({
+                            q: testQuery,
+                            rows: 1000,
+                            wt: 'json'
+                        });
+                        
+                        try {
+                            const altResponse = await fetch(`${solrUrl}?${altParams}`);
+                            if (altResponse.ok) {
+                                const altData = await altResponse.json();
+                                console.log(`Alternative query "${testQuery}" response:`, {
+                                    numFound: altData.response?.numFound,
+                                    docsCount: altData.response?.docs?.length
+                                });
+                                
+                                if (altData.response?.numFound > 0) {
+                                    // Use alternative query results
+                                    const getFieldValue = (field, defaultValue = '') => {
+                                        if (!field) return defaultValue;
+                                        if (Array.isArray(field)) {
+                                            return field.length > 0 ? String(field[0]) : defaultValue;
+                                        }
+                                        return String(field);
+                                    };
+                                    
+                                    const getFieldArray = (field, defaultValue = []) => {
+                                        if (!field) return defaultValue;
+                                        if (Array.isArray(field)) {
+                                            return field.map(String);
+                                        }
+                                        return [String(field)];
+                                    };
+                                    
+                                    this.filteredArticles = altData.response.docs.map(doc => ({
+                                        url: getFieldValue(doc.url),
+                                        title: getFieldValue(doc.title),
+                                        content: getFieldValue(doc.content),
+                                        section: getFieldValue(doc.section),
+                                        menu_item: getFieldValue(doc.menu_item),
+                                        menu_category: getFieldValue(doc.menu_category),
+                                        ingredients: getFieldValue(doc.ingredients),
+                                        store_name: getFieldValue(doc.store_name),
+                                        date: getFieldValue(doc.date),
+                                        tags: getFieldArray(doc.tags)
+                                    }));
+
+                                    this.sortArticles();
+                                    this.displayResults();
+                                    this.updateActiveFiltersDisplay();
+                                    await this.loadAllTags();
+                                    return;
+                                }
+                            }
+                        } catch (altError) {
+                            console.error(`Alternative query "${testQuery}" failed:`, altError);
+                        }
+                    }
+                }
+            }
 
             if (data.response && data.response.docs) {
                 // Helper function to safely extract field value (Solr may return arrays)
@@ -253,33 +348,33 @@ class ArticleSearch {
             const section = article.section || '';
             const ingredients = article.ingredients || '';
 
-            // For menu items: first line shows "菜单: Ramen", second line shows "店铺: #afuri", third line shows ingredients
-            // For stores: only show "店铺: #afuri"
+            // For menu items: first line shows "Menu: Ramen", second line shows "Store: #afuri", third line shows ingredients
+            // For stores: only show "Store: #afuri"
             let categoryLine = '';
             let tagsLine = '';
             let ingredientsLine = '';
             
             if (section === 'Menu' && menuCategory) {
-                // Menu items: first line shows "菜单" and category tag, second line shows "#afuri" tag
+                // Menu items: first line shows "Menu" and category tag, second line shows "#afuri" tag
                 const isSectionActive = this.activeFilters.section === 'Menu';
                 const isCategoryActive = this.activeFilters.category === menuCategory;
                 categoryLine = `<div class="category-line">
                     <span class="tag-badge tag-menu clickable-tag ${isSectionActive ? 'active' : ''}" 
                           data-filter-type="section" data-filter-value="Menu" 
-                          title="点击筛选菜单项">菜单</span>
+                          title="Click to filter menu items">Menu</span>
                     <span class="category-badge category-${menuCategory.toLowerCase().replace(' ', '-')} clickable-tag ${isCategoryActive ? 'active' : ''}" 
                           data-filter-type="category" data-filter-value="${this.escapeHtml(menuCategory)}" 
-                          title="点击筛选 ${this.escapeHtml(menuCategory)} 分类">${this.escapeHtml(menuCategory)}</span>
+                          title="Click to filter ${this.escapeHtml(menuCategory)} category">${this.escapeHtml(menuCategory)}</span>
                 </div>`;
                 
-                // Second line shows "#afuri" tag (removed "店铺" label)
+                // Second line shows "#afuri" tag (removed "Store" label)
                 tagsLine = tags.length > 0 ? `
                     <div class="tags-line">
                         ${tags.map(tag => {
                             const isTagActive = this.activeFilters.tag === tag;
                             return `<span class="tag-badge clickable-tag ${isTagActive ? 'active' : ''}" 
                                     data-filter-type="tag" data-filter-value="${this.escapeHtml(tag)}" 
-                                    title="点击筛选 #${this.escapeHtml(tag)}">#${this.escapeHtml(tag)}</span>`;
+                                    title="Click to filter #${this.escapeHtml(tag)}">#${this.escapeHtml(tag)}</span>`;
                         }).join('')}
                     </div>
                 ` : '';
@@ -287,39 +382,39 @@ class ArticleSearch {
                 // Third line shows ingredients
                 ingredientsLine = ingredients ? `
                     <div class="ingredients-line">
-                        <span class="section-label">原材料:</span>
+                        <span class="section-label">Ingredients:</span>
                         <span class="ingredients-text">${this.escapeHtml(ingredients)}</span>
                     </div>
                 ` : '';
             } else if (section === 'Store Information') {
-                // Stores: show "店铺" and "#afuri" as tags
+                // Stores: show "Store" and "#afuri" as tags
                 const isSectionActive = this.activeFilters.section === 'Store Information';
                 tagsLine = tags.length > 0 ? `
                     <div class="tags-line">
                         <span class="tag-badge tag-store clickable-tag ${isSectionActive ? 'active' : ''}" 
                               data-filter-type="section" data-filter-value="Store Information" 
-                              title="点击筛选店铺信息">店铺</span>
+                              title="Click to filter store information">Store</span>
                         ${tags.map(tag => {
                             const isTagActive = this.activeFilters.tag === tag;
                             return `<span class="tag-badge clickable-tag ${isTagActive ? 'active' : ''}" 
                                     data-filter-type="tag" data-filter-value="${this.escapeHtml(tag)}" 
-                                    title="点击筛选 #${this.escapeHtml(tag)}">#${this.escapeHtml(tag)}</span>`;
+                                    title="Click to filter #${this.escapeHtml(tag)}">#${this.escapeHtml(tag)}</span>`;
                         }).join('')}
                     </div>
                 ` : '';
             } else if (section === 'Brand Information') {
-                // Brand: show "品牌" and "#afuri" as tags
+                // Brand: show "Brand" and "#afuri" as tags
                 const isSectionActive = this.activeFilters.section === 'Brand Information';
                 tagsLine = tags.length > 0 ? `
                     <div class="tags-line">
                         <span class="tag-badge tag-brand clickable-tag ${isSectionActive ? 'active' : ''}" 
                               data-filter-type="section" data-filter-value="Brand Information" 
-                              title="点击筛选品牌信息">品牌</span>
+                              title="Click to filter brand information">Brand</span>
                         ${tags.map(tag => {
                             const isTagActive = this.activeFilters.tag === tag;
                             return `<span class="tag-badge clickable-tag ${isTagActive ? 'active' : ''}" 
                                     data-filter-type="tag" data-filter-value="${this.escapeHtml(tag)}" 
-                                    title="点击筛选 #${this.escapeHtml(tag)}">#${this.escapeHtml(tag)}</span>`;
+                                    title="Click to filter #${this.escapeHtml(tag)}">#${this.escapeHtml(tag)}</span>`;
                         }).join('')}
                     </div>
                 ` : '';
@@ -360,6 +455,7 @@ class ArticleSearch {
     
     handleTagClick(filterType, filterValue) {
         // Toggle filter: if same filter is clicked, remove it; otherwise, set it
+        console.log('Tag clicked:', filterType, filterValue);
         if (this.activeFilters[filterType] === filterValue) {
             // Remove filter
             this.activeFilters[filterType] = null;
@@ -367,6 +463,8 @@ class ArticleSearch {
             // Set filter (clear other filters of the same type)
             this.activeFilters[filterType] = filterValue;
         }
+        
+        console.log('Active filters after click:', this.activeFilters);
         
         // Update display
         this.updateActiveFiltersDisplay();
@@ -448,11 +546,18 @@ class ArticleSearch {
         }
         
         if (this.activeFilters.category) {
-            queryParts.push(`menu_category:"${this.activeFilters.category}"`);
+            // Escape the category value for Solr query
+            const categoryValue = this.activeFilters.category.trim().replace(/[+\-&|!(){}[\]^"~*?:\\]/g, '\\$&');
+            // Try different query formats for category matching
+            // If field is string type: use exact match with quotes
+            // If field is text type: try without quotes for token matching, or use phrase query
+            // Try phrase query first (works for both string and text fields)
+            queryParts.push(`menu_category:"${categoryValue}"`);
         }
         
         if (this.activeFilters.tag) {
-            queryParts.push(`tags:"${this.activeFilters.tag}"`);
+            const tagValue = this.activeFilters.tag.replace(/"/g, '\\"');
+            queryParts.push(`tags:"${tagValue}"`);
         }
         
         // If no filters and no search query, show all
@@ -483,6 +588,10 @@ class ArticleSearch {
         } else if (searchQuery) {
             finalQuery = searchQuery;
         }
+        
+        // Debug: log the query
+        console.log('Solr query:', finalQuery);
+        console.log('Active filters:', this.activeFilters);
         
         // Update search input to show active filters (optional)
         // Perform search
@@ -581,9 +690,9 @@ class ArticleSearch {
 
     getSectionLabel(section) {
         const sectionLabels = {
-            'Menu': '菜单',
-            'Store Information': '店铺',
-            'Brand Information': '品牌'
+            'Menu': 'Menu',
+            'Store Information': 'Store',
+            'Brand Information': 'Brand'
         };
         return sectionLabels[section] || section;
     }
@@ -642,9 +751,9 @@ class ArticleSearch {
             
             // Display section tags
             const sectionLabels = {
-                'Menu': '菜单',
-                'Store Information': '店铺',
-                'Brand Information': '品牌'
+                'Menu': 'Menu',
+                'Store Information': 'Store',
+                'Brand Information': 'Brand'
             };
             const sectionArray = Array.from(sections).map(s => ({
                 value: s,
@@ -718,7 +827,7 @@ class ArticleSearch {
             tagElement.setAttribute('data-filter-type', filterType);
             tagElement.setAttribute('data-filter-value', value);
             tagElement.textContent = filterType === 'tag' ? `#${label}` : label;
-            tagElement.title = `点击筛选 ${label}`;
+            tagElement.title = `Click to filter ${label}`;
             
             // Add category-specific class
             if (filterType === 'category' && typeof item === 'string') {

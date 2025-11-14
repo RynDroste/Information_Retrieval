@@ -1,259 +1,170 @@
-# Information Retrieval Project - AFURI Menu Scraper
+# AFURI 菜单爬取与搜索系统
 
-A web scraping project for extracting menu data from AFURI website, with data cleaning, Solr integration, and frontend display capabilities.
+从 AFURI 网站爬取菜单数据，进行清理和索引，提供前端搜索界面。
 
-## 📋 Table of Contents
+## 🚀 快速开始
 
-- [Project Overview](#project-overview)
-- [Features](#features)
-- [Requirements](#requirements)
-- [Installation](#installation)
-- [Usage](#usage)
-- [Project Structure](#project-structure)
-- [Data Format](#data-format)
-- [Troubleshooting](#troubleshooting)
-
-## 🎯 Project Overview
-
-This project is designed to:
-1. **Scrape** menu data from https://afuri.com/menu/
-2. **Clean** and process the scraped data
-3. **Index** data into Solr for search functionality
-4. **Display** data through a frontend interface
-
-All components are complete and ready to use!
-
-## ✨ Features
-
-- ✅ Web scraping with `requests` and `BeautifulSoup`
-- ✅ Automatic menu item extraction and categorization
-- ✅ Data export to JSON format
-- ✅ Data cleaning and normalization
-- ✅ Solr integration for search functionality
-- ✅ Frontend web interface with search and category filtering
-
-## 📦 Requirements
-
-- Python 3.7 or higher
-- pip (Python package manager)
-- Apache Solr (optional, for Solr search functionality)
-
-## 🚀 Installation
-
-### Step 1: Install Dependencies
+### 1. 安装依赖
 
 ```bash
 pip3 install -r requirements.txt
 ```
 
-This will install:
-- `requests` - For HTTP requests
-- `beautifulsoup4` - For HTML parsing
-- `lxml` - For faster HTML parsing
-- `pysolr` - For Solr integration (optional, only needed for Solr search)
-
-### Step 2: Setup Solr (Optional)
-
-If you want to use Solr search functionality, see `solr_setup.md` for detailed instructions.
-
-## 📖 Usage
-
-### 1. Scraping Data
-
-Run the scraper to collect menu data:
+### 2. 运行完整流程
 
 ```bash
-python3 scraper.py
+# 运行完整流程（爬取 -> 清理 -> 索引）
+python3 run_pipeline.py
+
+# 如果 Solr 未运行，跳过索引步骤
+python3 run_pipeline.py --skip-index
+
+# 运行并启动前端服务
+python3 run_pipeline.py --start-frontend
 ```
 
-**What it does:**
-- Fetches the AFURI menu page
-- Extracts menu items with categories
-- Saves data to `data/scraped_data.json`
-
-**Example output:**
-```
-Starting to scrape AFURI menu page: https://afuri.com/menu/
-Scraping: https://afuri.com/menu/
-
-Extracting menu items...
-    ✓ Menu item: Yuzu Shio Ramen (Ramen)
-    ✓ Menu item: Yuzu Shoyu Ramen (Ramen)
-    ...
-
-Menu scraping completed! Retrieved 58 menu items
-Data saved to: data/scraped_data.json
-```
-
-### 2. Cleaning Data
-
-Clean the scraped data to improve quality:
+### 3. 使用前端界面
 
 ```bash
-python3 data_cleaner.py
-```
-
-**What it does:**
-- Removes HTML tags and entities
-- Normalizes whitespace and special characters
-- Filters out invalid items
-- Removes duplicate items
-- Validates content
-
-**Output:**
-- Cleaned data is saved to `data/cleaned_data.json`
-- Original scraped data remains in `data/scraped_data.json`
-
-### 3. Indexing Data into Solr
-
-Index cleaned data into Apache Solr for advanced search functionality:
-
-**Prerequisites:**
-- Apache Solr installed and running
-- A Solr core named `afuri_menu` created
-
-See `solr_setup.md` for detailed Solr setup instructions.
-
-**Index data:**
-```bash
-python3 solr_indexer.py
-```
-
-**Options:**
-```bash
-# Custom Solr URL
-python3 solr_indexer.py --solr-url http://localhost:8983/solr/afuri_menu
-
-# Keep existing documents (append instead of replacing)
-python3 solr_indexer.py --keep-existing
-```
-
-### 4. Using the Frontend
-
-Open the web interface to search and browse menu items:
-
-**Option 1: Simple HTTP Server (Recommended)**
-
-```bash
-# Python 3
+# 启动前端服务器
+bash start_frontend.sh
+# 或
 python3 -m http.server 8000
 ```
 
-Then open http://localhost:8000/frontend/ in your browser.
+在浏览器中打开：**http://localhost:8000/frontend/**
 
-**Features:**
-- 🔍 Search menu items by keywords (e.g., "yuzu", "ramen", "tsukemen")
-- 📊 View menu statistics
-- 🎯 Sort by relevance, title, or category
-- 🏷️ Category badges for easy identification
-- 🌐 Two search modes:
-  - **Local Search**: Searches JSON file directly (works offline)
-  - **Solr Search**: Uses Solr for advanced search (requires Solr running)
-- 📱 Responsive design for mobile and desktop
+## 📖 功能说明
 
-## 📁 Project Structure
+### 数据处理流程
+
+1. **爬取** - 从 AFURI 网站爬取菜单、店铺和品牌信息
+2. **清理** - 清理和规范化数据，移除重复项
+3. **索引** - 将数据索引到 Solr（可选）
+4. **搜索** - 通过前端界面搜索和浏览
+
+### 搜索模式
+
+- **本地搜索**：直接搜索 JSON 文件，无需 Solr
+- **Solr 搜索**：使用 Solr 提供更强大的搜索功能（需要安装 Solr）
+
+## 🔧 Solr 设置（可选）
+
+### 安装和启动
+
+```bash
+# macOS
+brew install solr
+solr start
+solr create -c afuri_menu
+
+# Linux
+wget https://archive.apache.org/dist/solr/solr/8.11.2/solr-8.11.2.tgz
+tar xzf solr-8.11.2.tgz
+cd solr-8.11.2
+./bin/solr start
+./bin/solr create -c afuri_menu
+```
+
+### 索引数据
+
+```bash
+python3 run_pipeline.py
+# 或只执行索引
+python3 run_pipeline.py --skip-scrape --skip-clean
+```
+
+### Solr 的优势
+
+- ⚡ **快速搜索** - 索引优化，毫秒级响应
+- 🎯 **智能排序** - 相关性评分，最相关的结果在前
+- 🔍 **复杂查询** - 支持布尔查询、短语搜索等
+- 📊 **高级功能** - 分面搜索、高亮显示、统计分析
+
+## 📁 项目结构
 
 ```
 Information_Retrieval/
-├── README.md                    # This file
-├── requirements.txt              # Python dependencies
-├── scraper.py                   # Main scraping script
-├── data_cleaner.py              # Data cleaning script
-├── solr_indexer.py              # Solr indexing script
-├── solr_setup.md                # Solr setup guide
-├── frontend/                    # Web interface
-│   ├── index.html              # Main HTML page
-│   ├── styles.css              # CSS styles
-│   └── app.js                  # JavaScript application
-└── data/
-    ├── scraped_data.json        # Raw scraped data (generated)
-    └── cleaned_data.json        # Cleaned data (generated)
+├── run_pipeline.py          # 主流程脚本
+├── scraper.py               # 爬取模块
+├── data_cleaner.py          # 清理模块
+├── solr_indexer.py          # 索引模块
+├── solr_proxy.py            # Solr 代理服务器
+├── start_frontend.sh        # 前端启动脚本
+├── frontend/                # 前端界面
+│   ├── index.html
+│   ├── styles.css
+│   └── app.js
+└── data/                    # 数据目录
+    ├── scraped_data.json    # 原始数据
+    └── cleaned_data.json    # 清理后数据
 ```
 
-## 📊 Data Format
+## 🛠️ 常用命令
 
-### Cleaned Data (`cleaned_data.json`)
+```bash
+# 运行完整流程
+python3 run_pipeline.py
 
-Each menu item in `cleaned_data.json` contains:
+# 只执行爬取和清理
+python3 run_pipeline.py --skip-index
+
+# 只执行索引
+python3 run_pipeline.py --skip-scrape --skip-clean
+
+# 检查 Solr 状态
+solr status
+
+# 查看数据统计
+python3 -c "import json; data = json.load(open('data/cleaned_data.json')); print(f'共 {len(data)} 个菜单项')"
+```
+
+## ❓ 故障排除
+
+### 问题：找不到模块
+```bash
+pip3 install -r requirements.txt
+```
+
+### 问题：无法访问网站
+- 检查网络连接
+- 确认 https://afuri.com/menu/ 可以访问
+
+### 问题：Solr 连接失败
+- 确认 Solr 正在运行：`solr status`
+- 确认核心已创建：`solr create -c afuri_menu`
+- 检查端口 8983 是否被占用
+
+### 问题：前端无法加载数据
+- 确认已运行 `python3 run_pipeline.py`
+- 确认 `data/cleaned_data.json` 文件存在
+- 检查浏览器控制台是否有错误
+
+## 📊 数据格式
+
+每个菜单项包含以下字段：
 
 ```json
 {
   "url": "https://afuri.com/menu/",
   "title": "Menu - Yuzu Shio Ramen",
-  "content": "Yuzu Shio Ramen\n黄金色に輝く淡麗スープに爽やかな柚子の香りが広がる、AFURIを代表する一杯。\nchicken & dashi based broth, yuzu, half nitamago, chashu, mizuna, menma, nori",
+  "content": "菜单描述...",
   "section": "Menu",
   "menu_item": "Yuzu Shio Ramen",
-  "menu_category": "Ramen"
+  "menu_category": "Ramen",
+  "ingredients": "chicken & dashi based broth, yuzu..."
 }
 ```
 
-**Fields:**
-- `url`: Menu page URL (required)
-- `title`: Menu item title (required)
-- `content`: Menu item description with ingredients (required)
-- `section`: Section type, typically "Menu" (required)
-- `menu_item`: Menu item name (required)
-- `menu_category`: Menu category - Ramen, Tsukemen, Noodles, Side Dishes, Drinks, or Chi-yu (required)
+**分类**：Ramen, Noodles, Side Dishes, Drinks, Chi-yu
 
-## 🔧 Troubleshooting
+## 📝 注意事项
 
-### Issue: "Failed to fetch page"
-
-**Possible causes:**
-- No internet connection
-- Website is down
-
-**Solutions:**
-- Check your internet connection
-- Wait a few minutes and try again
-
-### Issue: "File does not exist"
-
-**Solution:**
-- Make sure you've run `python3 scraper.py` first
-- Check that the `data/` directory exists
-
-### Issue: Solr connection errors
-
-**Solution:**
-- Make sure Solr is running: `solr status`
-- Create the core: `solr create -c afuri_menu`
-- See `solr_setup.md` for detailed instructions
-
-## 🎯 Project Status
-
-This project is a complete information retrieval system with the following components:
-
-1. ✅ **Web Scraping** (`scraper.py`) - **COMPLETED**
-   - ✅ Scrape menu items from AFURI website
-   - ✅ Extract menu item details and categories
-   - ✅ Save to JSON format
-
-2. ✅ **Data Cleaning** (`data_cleaner.py`) - **COMPLETED**
-   - ✅ Remove HTML artifacts
-   - ✅ Normalize text
-   - ✅ Filter invalid items
-   - ✅ Handle encoding issues
-
-3. ✅ **Solr Integration** (`solr_indexer.py`) - **COMPLETED**
-   - ✅ Index cleaned data into Solr
-   - ✅ Search functionality
-   - ✅ Batch processing
-   - ✅ Error handling
-
-4. ✅ **Frontend Display** (`frontend/`) - **COMPLETED**
-   - ✅ Web interface for browsing menu items
-   - ✅ Search functionality (local and Solr)
-   - ✅ Category filtering and sorting
-   - ✅ Responsive design
-   - ✅ Highlighted search results
-
-## 📝 Notes
-
-- Data is saved in UTF-8 encoding to support Japanese characters
-- The scraper automatically creates the `data/` directory if it doesn't exist
-- Menu items are categorized automatically (Ramen, Tsukemen, Noodles, Side Dishes, Drinks, Chi-yu)
+- 数据使用 UTF-8 编码，支持日文字符
+- 脚本会自动创建 `data/` 目录
+- 菜单项会自动分类
+- Solr 是可选的，本地搜索也可以正常工作
 
 ---
 
-**Last Updated:** 2025
+**最后更新**：2025

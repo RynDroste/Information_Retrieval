@@ -207,26 +207,4 @@ class DataCleaner:
             print(f"Removal rate: {self.stats['removed']/self.stats['total']*100:.1f}%")
         print("=" * 80)
 
-def main():
-    cleaner = DataCleaner()
-    
-    if cleaner.clean_all():
-        cleaner.save_data()
-        cleaner.print_stats()
-        
-        # Show sample of cleaned data
-        if cleaner.articles:
-            print("\n📝 Sample of cleaned data:")
-            print("=" * 80)
-            sample = cleaner.articles[0]
-            print(f"Title: {sample['title']}")
-            print(f"URL: {sample['url']}")
-            if 'menu_category' in sample:
-                print(f"Category: {sample['menu_category']}")
-            print(f"Content length: {len(sample['content'])} characters")
-            print(f"Content preview: {sample['content'][:200]}...")
-    else:
-        print("Cleaning failed. Please check the error messages above.")
-
-if __name__ == '__main__':
-    main()
+# 此文件仅作为模块使用，请使用 run_pipeline.py 运行完整流程

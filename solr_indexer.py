@@ -200,27 +200,5 @@ class SolrIndexer:
         else:
             print("Search test failed")
 
-def main():
-    import argparse
-    
-    parser = argparse.ArgumentParser(description='Index articles into Solr')
-    parser.add_argument('--solr-url', default='http://localhost:8983/solr/afuri_menu',
-                       help='Solr URL (default: http://localhost:8983/solr/afuri_menu)')
-    parser.add_argument('--data-file', default='data/cleaned_data.json',
-                       help='Path to cleaned data file (default: data/cleaned_data.json)')
-    parser.add_argument('--keep-existing', action='store_true',
-                       help='Keep existing documents (do not clear before indexing)')
-    
-    args = parser.parse_args()
-    
-    indexer = SolrIndexer(solr_url=args.solr_url, data_file=args.data_file)
-    
-    if indexer.index_articles(clear_existing=not args.keep_existing):
-        indexer.print_stats()
-    else:
-        print("\nIndexing failed. Please check the error messages above.")
-        sys.exit(1)
-
-if __name__ == '__main__':
-    main()
+# 此文件仅作为模块使用，请使用 run_pipeline.py 运行完整流程
 
