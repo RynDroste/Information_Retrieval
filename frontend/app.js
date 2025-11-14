@@ -74,13 +74,28 @@ class ArticleSearch {
         
         let finalQuery = '*:*';
         
+        // Build search query for text fields
+        let searchQuery = '';
+        if (query) {
+            // Escape special Solr characters but keep spaces for word matching
+            const escapedQuery = query.replace(/[+\-&|!(){}[\]^"~*?:\\]/g, '\\$&');
+            // Split query into words and search across multiple text fields
+            const words = escapedQuery.split(/\s+/).filter(w => w.length > 0);
+            if (words.length > 0) {
+                const wordQueries = words.map(word => 
+                    `(title:*${word}* OR content:*${word}* OR menu_item:*${word}* OR ingredients:*${word}*)`
+                );
+                searchQuery = wordQueries.join(' AND ');
+            }
+        }
+        
         if (queryParts.length > 0) {
             finalQuery = queryParts.join(' AND ');
-            if (query) {
-                finalQuery = `(${finalQuery}) AND (${query})`;
+            if (searchQuery) {
+                finalQuery = `(${finalQuery}) AND (${searchQuery})`;
             }
-        } else if (query) {
-            finalQuery = query;
+        } else if (searchQuery) {
+            finalQuery = searchQuery;
         }
 
         const loading = document.getElementById('loading');
@@ -444,14 +459,29 @@ class ArticleSearch {
         const searchInput = document.getElementById('searchInput').value.trim();
         let finalQuery = '*:*';
         
+        // Build search query for text fields
+        let searchQuery = '';
+        if (searchInput) {
+            // Escape special Solr characters but keep spaces for word matching
+            const escapedQuery = searchInput.replace(/[+\-&|!(){}[\]^"~*?:\\]/g, '\\$&');
+            // Split query into words and search across multiple text fields
+            const words = escapedQuery.split(/\s+/).filter(w => w.length > 0);
+            if (words.length > 0) {
+                const wordQueries = words.map(word => 
+                    `(title:*${word}* OR content:*${word}* OR menu_item:*${word}* OR ingredients:*${word}*)`
+                );
+                searchQuery = wordQueries.join(' AND ');
+            }
+        }
+        
         if (queryParts.length > 0) {
             finalQuery = queryParts.join(' AND ');
             // If there's also a search query, combine them
-            if (searchInput) {
-                finalQuery = `(${finalQuery}) AND (${searchInput})`;
+            if (searchQuery) {
+                finalQuery = `(${finalQuery}) AND (${searchQuery})`;
             }
-        } else if (searchInput) {
-            finalQuery = searchInput;
+        } else if (searchQuery) {
+            finalQuery = searchQuery;
         }
         
         // Update search input to show active filters (optional)
