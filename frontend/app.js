@@ -13,6 +13,7 @@ class ArticleSearch {
     async init() {
         this.setupEventListeners();
         await this.displayStats();
+        await this.loadAllTags();
         this.updateActiveFiltersDisplay();
     }
 
@@ -92,6 +93,7 @@ class ArticleSearch {
 
         try {
             await this.searchSolr(finalQuery);
+            await this.loadAllTags(); // Update tags after search
         } catch (error) {
             console.error('Search error:', error);
             let errorMessage = 'Error performing search. ';
@@ -160,10 +162,12 @@ class ArticleSearch {
                 this.sortArticles();
                 this.displayResults();
                 this.updateActiveFiltersDisplay();
+                await this.loadAllTags(); // Update tags based on current results
             } else {
                 this.filteredArticles = [];
                 this.displayResults();
                 this.updateActiveFiltersDisplay();
+                await this.loadAllTags();
             }
         } catch (error) {
             console.error('Solr search error details:', error);
@@ -241,7 +245,7 @@ class ArticleSearch {
             let ingredientsLine = '';
             
             if (section === 'Menu' && menuCategory) {
-                // Menu items: first line shows "菜单" and "Ramen" as tags
+                // Menu items: first line shows "菜单" and category tag, second line shows "#afuri" tag
                 const isSectionActive = this.activeFilters.section === 'Menu';
                 const isCategoryActive = this.activeFilters.category === menuCategory;
                 categoryLine = `<div class="category-line">
@@ -253,12 +257,9 @@ class ArticleSearch {
                           title="点击筛选 ${this.escapeHtml(menuCategory)} 分类">${this.escapeHtml(menuCategory)}</span>
                 </div>`;
                 
-                // Second line shows "店铺" and "#afuri" as tags
+                // Second line shows "#afuri" tag (removed "店铺" label)
                 tagsLine = tags.length > 0 ? `
                     <div class="tags-line">
-                        <span class="tag-badge tag-store clickable-tag ${this.activeFilters.section === 'Store Information' ? 'active' : ''}" 
-                              data-filter-type="section" data-filter-value="Store Information" 
-                              title="点击筛选店铺信息">店铺</span>
                         ${tags.map(tag => {
                             const isTagActive = this.activeFilters.tag === tag;
                             return `<span class="tag-badge clickable-tag ${isTagActive ? 'active' : ''}" 
@@ -465,6 +466,7 @@ class ArticleSearch {
         
         try {
             await this.searchSolr(finalQuery);
+            await this.loadAllTags(); // Update tags after filter search
         } catch (error) {
             console.error('Search error:', error);
             let errorMessage = 'Error performing search. ';
@@ -578,6 +580,129 @@ class ArticleSearch {
             console.error('Error getting stats from Solr:', error);
             document.getElementById('resultCount').textContent = '?';
         }
+    }
+    
+    async loadAllTags() {
+        try {
+            // Always get all articles to show all available tags
+            const articles = await this.getAllArticles();
+            
+            // Extract unique categories
+            const categories = new Set();
+            const storeTags = new Set();
+            const sections = new Set();
+            
+            articles.forEach(article => {
+                if (article.menu_category) {
+                    categories.add(article.menu_category);
+                }
+                if (article.tags && article.tags.length > 0) {
+                    article.tags.forEach(tag => storeTags.add(tag));
+                }
+                if (article.section) {
+                    sections.add(article.section);
+                }
+            });
+            
+            // Display category tags
+            this.displayTagGroup('categoryTagList', Array.from(categories).sort(), 'category', 'category-badge');
+            
+            // Display store tags
+            this.displayTagGroup('storeTagList', Array.from(storeTags).sort(), 'tag', 'tag-badge');
+            
+            // Display section tags
+            const sectionLabels = {
+                'Menu': '菜单',
+                'Store Information': '店铺',
+                'Brand Information': '品牌'
+            };
+            const sectionArray = Array.from(sections).map(s => ({
+                value: s,
+                label: sectionLabels[s] || s
+            })).sort((a, b) => a.label.localeCompare(b.label));
+            this.displayTagGroup('sectionTagList', sectionArray, 'section', 'tag-badge', true);
+            
+        } catch (error) {
+            console.error('Error loading tags:', error);
+        }
+    }
+    
+    async getAllArticles() {
+        try {
+            const solrUrl = 'http://localhost:8888/solr/afuri_menu/select';
+            const params = new URLSearchParams({
+                q: '*:*',
+                rows: 1000,
+                wt: 'json'
+            });
+
+            const response = await fetch(`${solrUrl}?${params}`);
+            if (!response.ok) {
+                return [];
+            }
+            
+            const data = await response.json();
+            if (data.response && data.response.docs) {
+                const getFieldValue = (field, defaultValue = '') => {
+                    if (!field) return defaultValue;
+                    if (Array.isArray(field)) {
+                        return field.length > 0 ? String(field[0]) : defaultValue;
+                    }
+                    return String(field);
+                };
+                
+                const getFieldArray = (field, defaultValue = []) => {
+                    if (!field) return defaultValue;
+                    if (Array.isArray(field)) {
+                        return field.map(String);
+                    }
+                    return [String(field)];
+                };
+                
+                return data.response.docs.map(doc => ({
+                    menu_category: getFieldValue(doc.menu_category),
+                    tags: getFieldArray(doc.tags),
+                    section: getFieldValue(doc.section)
+                }));
+            }
+            return [];
+        } catch (error) {
+            console.error('Error getting all articles:', error);
+            return [];
+        }
+    }
+    
+    displayTagGroup(containerId, items, filterType, badgeClass, isObject = false) {
+        const container = document.getElementById(containerId);
+        if (!container) return;
+        
+        container.innerHTML = '';
+        
+        items.forEach(item => {
+            const value = isObject ? item.value : item;
+            const label = isObject ? item.label : item;
+            const isActive = this.activeFilters[filterType] === value;
+            
+            const tagElement = document.createElement('span');
+            tagElement.className = `${badgeClass} clickable-tag ${isActive ? 'active' : ''}`;
+            tagElement.setAttribute('data-filter-type', filterType);
+            tagElement.setAttribute('data-filter-value', value);
+            tagElement.textContent = filterType === 'tag' ? `#${label}` : label;
+            tagElement.title = `点击筛选 ${label}`;
+            
+            // Add category-specific class
+            if (filterType === 'category' && typeof item === 'string') {
+                tagElement.className += ` category-${item.toLowerCase().replace(' ', '-')}`;
+            }
+            
+            tagElement.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                this.handleTagClick(filterType, value);
+            });
+            
+            container.appendChild(tagElement);
+        });
     }
 }
 

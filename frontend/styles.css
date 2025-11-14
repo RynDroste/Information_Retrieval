@@ -36,13 +36,22 @@ header {
     font-size: 10px;
     font-weight: 500;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
-    transition: transform 0.2s, box-shadow 0.2s;
+    transition: transform 0.2s, box-shadow 0.2s, border 0.2s;
     cursor: default;
+    border: 2px solid transparent;
 }
 
 .category-badge:hover {
     transform: translateY(-1px);
     box-shadow: 0 3px 6px rgba(0, 0, 0, 0.2);
+}
+
+.category-badge.active {
+    border-color: #ffffff;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.8), 0 0 0 5px rgba(102, 126, 234, 0.3), 0 6px 12px rgba(0, 0, 0, 0.4);
+    transform: scale(1.1);
+    font-weight: 700;
+    animation: pulse-active 2s ease-in-out infinite;
 }
 
 .category-ramen {
@@ -135,13 +144,22 @@ header {
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     color: white;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
-    transition: transform 0.2s, box-shadow 0.2s;
+    transition: transform 0.2s, box-shadow 0.2s, border 0.2s;
     cursor: default;
+    border: 2px solid transparent;
 }
 
 .tag-badge:hover {
     transform: translateY(-1px);
     box-shadow: 0 3px 6px rgba(0, 0, 0, 0.2);
+}
+
+.tag-badge.active {
+    border-color: #ffffff;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.8), 0 0 0 5px rgba(102, 126, 234, 0.3), 0 6px 12px rgba(0, 0, 0, 0.4);
+    transform: scale(1.1);
+    font-weight: 700;
+    animation: pulse-active 2s ease-in-out infinite;
 }
 
 .clickable-tag {
@@ -156,9 +174,22 @@ header {
 }
 
 .clickable-tag.active {
-    box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.5), 0 4px 8px rgba(0, 0, 0, 0.3);
-    transform: scale(1.05);
-    font-weight: 600;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.8), 0 0 0 5px rgba(102, 126, 234, 0.3), 0 6px 12px rgba(0, 0, 0, 0.4);
+    transform: scale(1.1);
+    font-weight: 700;
+    border: 2px solid #ffffff;
+    position: relative;
+    z-index: 1;
+    animation: pulse-active 2s ease-in-out infinite;
+}
+
+@keyframes pulse-active {
+    0%, 100% {
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.8), 0 0 0 5px rgba(102, 126, 234, 0.3), 0 6px 12px rgba(0, 0, 0, 0.4);
+    }
+    50% {
+        box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.9), 0 0 0 7px rgba(102, 126, 234, 0.4), 0 8px 16px rgba(0, 0, 0, 0.5);
+    }
 }
 
 /* Special tag styles for menu, store, and brand labels */
@@ -190,6 +221,40 @@ header h1 {
     padding: 30px;
     background: #f8f9fa;
     border-bottom: 1px solid #e9ecef;
+}
+
+.all-tags-section {
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 1px solid #dee2e6;
+}
+
+.tags-container {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.tag-group {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.tag-group-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: #495057;
+    min-width: 50px;
+    padding-top: 3px;
+}
+
+.tag-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    flex: 1;
 }
 
 .search-box {
@@ -296,12 +361,14 @@ header h1 {
     cursor: pointer;
     transition: all 0.2s;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+    border: 2px solid transparent;
 }
 
 .filter-tag:hover {
     transform: translateY(-1px);
     box-shadow: 0 3px 6px rgba(0, 0, 0, 0.2);
     background: linear-gradient(135deg, #5568d3 0%, #653a8f 100%);
+    border-color: rgba(255, 255, 255, 0.5);
 }
 
 .filter-tag::after {
