@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Solr Connection Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        .test-result {
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+        }
+        .success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        pre {
+            background: #f4f4f4;
+            padding: 10px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>Solr Connection Test</h1>
+    <p>This page will test the connection to Solr and help diagnose any issues.</p>
+    
+    <button onclick="testConnection()">Test Solr Connection</button>
+    
+    <div id="results"></div>
+
+    <script>
+        async function testConnection() {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = '<div class="info">Testing connection...</div>';
+            
+            const solrUrl = 'http://localhost:8983/solr/afuri_menu/select';
+            const testQueries = [
+                { name: 'Basic Connection', url: `${solrUrl}?q=*:*&rows=1&wt=json` },
+                { name: 'Search Test', url: `${solrUrl}?q=yuzu&rows=5&wt=json` }
+            ];
+            
+            let html = '';
+            
+            for (const test of testQueries) {
+                try {
+                    const response = await fetch(test.url);
+                    
+                    if (!response.ok) {
+                        html += `<div class="error">
+                            <strong>${test.name}: FAILED</strong><br>
+                            Status: ${response.status} ${response.statusText}<br>
+                            URL: ${test.url}
+                        </div>`;
+                        continue;
+                    }
+                    
+                    const data = await response.json();
+                    const numFound = data.response?.numFound || 0;
+                    
+                    html += `<div class="success">
+                        <strong>${test.name}: SUCCESS</strong><br>
+                        Documents found: ${numFound}<br>
+                        Response time: ${data.responseHeader?.QTime || 0}ms
+                    </div>`;
+                    
+                } catch (error) {
+                    html += `<div class="error">
+                        <strong>${test.name}: ERROR</strong><br>
+                        Error: ${error.message || error.toString()}<br>
+                        Type: ${error.name || 'Unknown'}<br>
+                        <pre>${error.stack || 'No stack trace'}</pre>
+                    </div>`;
+                }
+            }
+            
+            // Test Solr status
+            try {
+                const statusResponse = await fetch('http://localhost:8983/api/info/system');
+                if (statusResponse.ok) {
+                    const statusData = await statusResponse.json();
+                    html += `<div class="success">
+                        <strong>Solr Status: RUNNING</strong><br>
+                        Version: ${statusData.lucene?.solrSpecVersion || 'Unknown'}<br>
+                        Uptime: ${statusData.system?.uptime || 'Unknown'}
+                    </div>`;
+                }
+            } catch (error) {
+                html += `<div class="error">
+                    <strong>Solr Status Check: FAILED</strong><br>
+                    Error: ${error.message || error.toString()}
+                </div>`;
+            }
+            
+            resultsDiv.innerHTML = html;
+        }
+        
+        // Auto-run test on page load
+        window.addEventListener('load', () => {
+            setTimeout(testConnection, 500);
+        });
+    </script>
+</body>
+</html>
+

@@ -1,29 +1,19 @@
 // Article Search Application
 class ArticleSearch {
     constructor() {
-        this.articles = [];
         this.filteredArticles = [];
-        this.searchMode = 'local';
+        this.activeFilters = {
+            section: null,
+            category: null,
+            tag: null
+        };
         this.init();
     }
 
     async init() {
-        await this.loadArticles();
         this.setupEventListeners();
-        this.displayStats();
-    }
-
-    async loadArticles() {
-        try {
-            const response = await fetch('../data/cleaned_data.json');
-            this.articles = await response.json();
-            this.filteredArticles = [...this.articles];
-            this.displayStats();
-        } catch (error) {
-            console.error('Error loading articles:', error);
-            document.getElementById('results').innerHTML = 
-                '<div class="no-results"><p>Error loading articles. Please make sure data/cleaned_data.json exists.</p></div>';
-        }
+        await this.displayStats();
+        this.updateActiveFiltersDisplay();
     }
 
     setupEventListeners() {
@@ -52,119 +42,142 @@ class ArticleSearch {
             }
         });
 
-        // Search mode change
-        document.querySelectorAll('input[name="searchMode"]').forEach(radio => {
-            radio.addEventListener('change', (e) => {
-                this.searchMode = e.target.value;
+        // Clear filters button
+        const clearFiltersBtn = document.getElementById('clearFilters');
+        if (clearFiltersBtn) {
+            clearFiltersBtn.addEventListener('click', () => {
+                this.clearAllFilters();
             });
-        });
+        }
     }
 
     async performSearch() {
+        // Clear filters when performing manual search
+        // Or keep filters - let's keep them for now
         const query = document.getElementById('searchInput').value.trim();
+        
+        // Build query with active filters
+        let queryParts = [];
+        
+        if (this.activeFilters.section) {
+            queryParts.push(`section:"${this.activeFilters.section}"`);
+        }
+        
+        if (this.activeFilters.category) {
+            queryParts.push(`menu_category:"${this.activeFilters.category}"`);
+        }
+        
+        if (this.activeFilters.tag) {
+            queryParts.push(`tags:"${this.activeFilters.tag}"`);
+        }
+        
+        let finalQuery = '*:*';
+        
+        if (queryParts.length > 0) {
+            finalQuery = queryParts.join(' AND ');
+            if (query) {
+                finalQuery = `(${finalQuery}) AND (${query})`;
+            }
+        } else if (query) {
+            finalQuery = query;
+        }
+
         const loading = document.getElementById('loading');
         const results = document.getElementById('results');
         const noResults = document.getElementById('noResults');
-
-        if (!query) {
-            this.filteredArticles = [...this.articles];
-            this.sortArticles();
-            this.displayResults();
-            return;
-        }
 
         loading.style.display = 'block';
         results.innerHTML = '';
         noResults.style.display = 'none';
 
         try {
-            if (this.searchMode === 'solr') {
-                await this.searchSolr(query);
-            } else {
-                this.searchLocal(query);
-            }
+            await this.searchSolr(finalQuery);
         } catch (error) {
             console.error('Search error:', error);
-            results.innerHTML = '<div class="no-results"><p>Error performing search. Please try again.</p></div>';
+            let errorMessage = 'Error performing search. ';
+            if (error.message.includes('fetch') || error.message.includes('Failed to fetch')) {
+                errorMessage += 'Cannot connect to Solr server. Please make sure Solr is running on http://localhost:8983';
+            } else if (error.message.includes('CORS')) {
+                errorMessage += 'CORS error. Please check Solr CORS configuration.';
+            } else {
+                errorMessage += error.message || 'Please check the browser console for details.';
+            }
+            results.innerHTML = `<div class="no-results"><p>${errorMessage}</p><p style="font-size: 12px; color: #6c757d; margin-top: 10px;">If Solr is running, check browser console (F12) for more details.</p></div>`;
         } finally {
             loading.style.display = 'none';
         }
     }
 
-    searchLocal(query) {
-        const queryLower = query.toLowerCase();
-        const queryWords = queryLower.split(/\s+/).filter(w => w.length > 0);
-
-        this.filteredArticles = this.articles.filter(article => {
-            const title = (article.title || '').toLowerCase();
-            const content = (article.content || '').toLowerCase();
-            const menuItem = (article.menu_item || '').toLowerCase();
-            const menuCategory = (article.menu_category || '').toLowerCase();
-            const ingredients = (article.ingredients || '').toLowerCase();
-            const url = (article.url || '').toLowerCase();
-
-            // Check if all query words appear in title, content, menu_item, menu_category, ingredients, or URL
-            return queryWords.every(word => 
-                title.includes(word) || 
-                content.includes(word) || 
-                menuItem.includes(word) ||
-                menuCategory.includes(word) ||
-                ingredients.includes(word) ||
-                url.includes(word)
-            );
-        });
-
-        // Sort by relevance (simple: count matches in title and menu_item)
-        this.filteredArticles.sort((a, b) => {
-            const aTitle = (a.title || '').toLowerCase();
-            const bTitle = (b.title || '').toLowerCase();
-            const aMenuItem = (a.menu_item || '').toLowerCase();
-            const bMenuItem = (b.menu_item || '').toLowerCase();
-            const aMatches = queryWords.filter(w => aTitle.includes(w) || aMenuItem.includes(w)).length;
-            const bMatches = queryWords.filter(w => bTitle.includes(w) || bMenuItem.includes(w)).length;
-            return bMatches - aMatches;
-        });
-
-        this.sortArticles();
-        this.displayResults();
-    }
-
     async searchSolr(query) {
-        try {
-            const solrUrl = 'http://localhost:8983/solr/afuri_menu/select';
-            const params = new URLSearchParams({
-                q: query,
-                rows: 50,
-                wt: 'json'
-            });
+        // Use proxy to avoid CORS issues
+        const solrUrl = 'http://localhost:8888/solr/afuri_menu/select';
+        const params = new URLSearchParams({
+            q: query,
+            rows: 1000,
+            wt: 'json'
+        });
 
+        try {
             const response = await fetch(`${solrUrl}?${params}`);
+            
+            if (!response.ok) {
+                throw new Error(`Solr request failed: ${response.status} ${response.statusText}`);
+            }
+            
             const data = await response.json();
 
             if (data.response && data.response.docs) {
+                // Helper function to safely extract field value (Solr may return arrays)
+                const getFieldValue = (field, defaultValue = '') => {
+                    if (!field) return defaultValue;
+                    if (Array.isArray(field)) {
+                        return field.length > 0 ? String(field[0]) : defaultValue;
+                    }
+                    return String(field);
+                };
+                
+                const getFieldArray = (field, defaultValue = []) => {
+                    if (!field) return defaultValue;
+                    if (Array.isArray(field)) {
+                        return field.map(String);
+                    }
+                    return [String(field)];
+                };
+                
                 this.filteredArticles = data.response.docs.map(doc => ({
-                    url: doc.url || '',
-                    title: doc.title || '',
-                    content: doc.content || '',
-                    section: doc.section || '',
-                    menu_item: doc.menu_item || '',
-                    menu_category: doc.menu_category || '',
-                    ingredients: doc.ingredients || '',
-                    store_name: doc.store_name || '',
-                    date: doc.date || '',
-                    tags: doc.tags || []
+                    url: getFieldValue(doc.url),
+                    title: getFieldValue(doc.title),
+                    content: getFieldValue(doc.content),
+                    section: getFieldValue(doc.section),
+                    menu_item: getFieldValue(doc.menu_item),
+                    menu_category: getFieldValue(doc.menu_category),
+                    ingredients: getFieldValue(doc.ingredients),
+                    store_name: getFieldValue(doc.store_name),
+                    date: getFieldValue(doc.date),
+                    tags: getFieldArray(doc.tags)
                 }));
 
                 this.sortArticles();
                 this.displayResults();
+                this.updateActiveFiltersDisplay();
             } else {
                 this.filteredArticles = [];
                 this.displayResults();
+                this.updateActiveFiltersDisplay();
             }
         } catch (error) {
-            console.error('Solr search error:', error);
-            // Fallback to local search
-            this.searchLocal(query);
+            console.error('Solr search error details:', error);
+            // Check for specific error types
+            if (error.message.includes('fetch') || error.message.includes('Failed to fetch') || error.name === 'TypeError') {
+                // This is likely a CORS or connection error
+                const errorMsg = error.message || error.toString();
+                if (errorMsg.includes('CORS') || errorMsg.includes('cross-origin')) {
+                    throw new Error('CORS error: Browser blocked the request. Solr may need CORS configuration.');
+                } else {
+                    throw new Error('Cannot connect to Solr server. Please make sure Solr is running on http://localhost:8983. Error: ' + errorMsg);
+                }
+            }
+            throw error;
         }
     }
 
@@ -192,7 +205,7 @@ class ArticleSearch {
                     return titleA.localeCompare(titleB);
                 });
                 break;
-            // 'relevance' is already sorted by searchLocal
+            // 'relevance' is already sorted by Solr
         }
     }
 
@@ -229,16 +242,29 @@ class ArticleSearch {
             
             if (section === 'Menu' && menuCategory) {
                 // Menu items: first line shows "菜单" and "Ramen" as tags
+                const isSectionActive = this.activeFilters.section === 'Menu';
+                const isCategoryActive = this.activeFilters.category === menuCategory;
                 categoryLine = `<div class="category-line">
-                    <span class="tag-badge tag-menu">菜单</span>
-                    <span class="category-badge category-${menuCategory.toLowerCase().replace(' ', '-')}">${menuCategory}</span>
+                    <span class="tag-badge tag-menu clickable-tag ${isSectionActive ? 'active' : ''}" 
+                          data-filter-type="section" data-filter-value="Menu" 
+                          title="点击筛选菜单项">菜单</span>
+                    <span class="category-badge category-${menuCategory.toLowerCase().replace(' ', '-')} clickable-tag ${isCategoryActive ? 'active' : ''}" 
+                          data-filter-type="category" data-filter-value="${this.escapeHtml(menuCategory)}" 
+                          title="点击筛选 ${this.escapeHtml(menuCategory)} 分类">${this.escapeHtml(menuCategory)}</span>
                 </div>`;
                 
                 // Second line shows "店铺" and "#afuri" as tags
                 tagsLine = tags.length > 0 ? `
                     <div class="tags-line">
-                        <span class="tag-badge tag-store">店铺</span>
-                        ${tags.map(tag => `<span class="tag-badge">#${tag}</span>`).join('')}
+                        <span class="tag-badge tag-store clickable-tag ${this.activeFilters.section === 'Store Information' ? 'active' : ''}" 
+                              data-filter-type="section" data-filter-value="Store Information" 
+                              title="点击筛选店铺信息">店铺</span>
+                        ${tags.map(tag => {
+                            const isTagActive = this.activeFilters.tag === tag;
+                            return `<span class="tag-badge clickable-tag ${isTagActive ? 'active' : ''}" 
+                                    data-filter-type="tag" data-filter-value="${this.escapeHtml(tag)}" 
+                                    title="点击筛选 #${this.escapeHtml(tag)}">#${this.escapeHtml(tag)}</span>`;
+                        }).join('')}
                     </div>
                 ` : '';
                 
@@ -246,23 +272,39 @@ class ArticleSearch {
                 ingredientsLine = ingredients ? `
                     <div class="ingredients-line">
                         <span class="section-label">原材料:</span>
-                        <span class="ingredients-text">${ingredients}</span>
+                        <span class="ingredients-text">${this.escapeHtml(ingredients)}</span>
                     </div>
                 ` : '';
             } else if (section === 'Store Information') {
                 // Stores: show "店铺" and "#afuri" as tags
+                const isSectionActive = this.activeFilters.section === 'Store Information';
                 tagsLine = tags.length > 0 ? `
                     <div class="tags-line">
-                        <span class="tag-badge tag-store">店铺</span>
-                        ${tags.map(tag => `<span class="tag-badge">#${tag}</span>`).join('')}
+                        <span class="tag-badge tag-store clickable-tag ${isSectionActive ? 'active' : ''}" 
+                              data-filter-type="section" data-filter-value="Store Information" 
+                              title="点击筛选店铺信息">店铺</span>
+                        ${tags.map(tag => {
+                            const isTagActive = this.activeFilters.tag === tag;
+                            return `<span class="tag-badge clickable-tag ${isTagActive ? 'active' : ''}" 
+                                    data-filter-type="tag" data-filter-value="${this.escapeHtml(tag)}" 
+                                    title="点击筛选 #${this.escapeHtml(tag)}">#${this.escapeHtml(tag)}</span>`;
+                        }).join('')}
                     </div>
                 ` : '';
             } else if (section === 'Brand Information') {
                 // Brand: show "品牌" and "#afuri" as tags
+                const isSectionActive = this.activeFilters.section === 'Brand Information';
                 tagsLine = tags.length > 0 ? `
                     <div class="tags-line">
-                        <span class="tag-badge tag-brand">品牌</span>
-                        ${tags.map(tag => `<span class="tag-badge">#${tag}</span>`).join('')}
+                        <span class="tag-badge tag-brand clickable-tag ${isSectionActive ? 'active' : ''}" 
+                              data-filter-type="section" data-filter-value="Brand Information" 
+                              title="点击筛选品牌信息">品牌</span>
+                        ${tags.map(tag => {
+                            const isTagActive = this.activeFilters.tag === tag;
+                            return `<span class="tag-badge clickable-tag ${isTagActive ? 'active' : ''}" 
+                                    data-filter-type="tag" data-filter-value="${this.escapeHtml(tag)}" 
+                                    title="点击筛选 #${this.escapeHtml(tag)}">#${this.escapeHtml(tag)}</span>`;
+                        }).join('')}
                     </div>
                 ` : '';
             }
@@ -282,6 +324,161 @@ class ArticleSearch {
                 </div>
             `;
         }).join('');
+        
+        // Add click event listeners to tags after rendering
+        this.attachTagClickListeners();
+    }
+    
+    attachTagClickListeners() {
+        // Add click listeners to all clickable tags
+        document.querySelectorAll('.clickable-tag').forEach(tag => {
+            tag.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                const filterType = tag.getAttribute('data-filter-type');
+                const filterValue = tag.getAttribute('data-filter-value');
+                this.handleTagClick(filterType, filterValue);
+            });
+        });
+    }
+    
+    handleTagClick(filterType, filterValue) {
+        // Toggle filter: if same filter is clicked, remove it; otherwise, set it
+        if (this.activeFilters[filterType] === filterValue) {
+            // Remove filter
+            this.activeFilters[filterType] = null;
+        } else {
+            // Set filter (clear other filters of the same type)
+            this.activeFilters[filterType] = filterValue;
+        }
+        
+        // Update display
+        this.updateActiveFiltersDisplay();
+        
+        // Perform search with active filters
+        this.performSearchWithFilters();
+    }
+    
+    clearAllFilters() {
+        this.activeFilters = {
+            section: null,
+            category: null,
+            tag: null
+        };
+        this.updateActiveFiltersDisplay();
+        // Perform search to show all results
+        this.performSearchWithFilters();
+    }
+    
+    updateActiveFiltersDisplay() {
+        const activeFiltersDiv = document.getElementById('activeFilters');
+        const filterTagsDiv = document.getElementById('filterTags');
+        
+        const hasFilters = this.activeFilters.section || 
+                         this.activeFilters.category || 
+                         this.activeFilters.tag;
+        
+        if (!hasFilters) {
+            activeFiltersDiv.style.display = 'none';
+            return;
+        }
+        
+        activeFiltersDiv.style.display = 'flex';
+        filterTagsDiv.innerHTML = '';
+        
+        if (this.activeFilters.section) {
+            const filterTag = document.createElement('span');
+            filterTag.className = 'filter-tag';
+            filterTag.textContent = this.getSectionLabel(this.activeFilters.section);
+            filterTag.addEventListener('click', () => {
+                this.activeFilters.section = null;
+                this.updateActiveFiltersDisplay();
+                this.performSearchWithFilters();
+            });
+            filterTagsDiv.appendChild(filterTag);
+        }
+        
+        if (this.activeFilters.category) {
+            const filterTag = document.createElement('span');
+            filterTag.className = 'filter-tag';
+            filterTag.textContent = this.activeFilters.category;
+            filterTag.addEventListener('click', () => {
+                this.activeFilters.category = null;
+                this.updateActiveFiltersDisplay();
+                this.performSearchWithFilters();
+            });
+            filterTagsDiv.appendChild(filterTag);
+        }
+        
+        if (this.activeFilters.tag) {
+            const filterTag = document.createElement('span');
+            filterTag.className = 'filter-tag';
+            filterTag.textContent = `#${this.activeFilters.tag}`;
+            filterTag.addEventListener('click', () => {
+                this.activeFilters.tag = null;
+                this.updateActiveFiltersDisplay();
+                this.performSearchWithFilters();
+            });
+            filterTagsDiv.appendChild(filterTag);
+        }
+    }
+    
+    async performSearchWithFilters() {
+        // Build Solr query based on active filters
+        let queryParts = [];
+        
+        if (this.activeFilters.section) {
+            queryParts.push(`section:"${this.activeFilters.section}"`);
+        }
+        
+        if (this.activeFilters.category) {
+            queryParts.push(`menu_category:"${this.activeFilters.category}"`);
+        }
+        
+        if (this.activeFilters.tag) {
+            queryParts.push(`tags:"${this.activeFilters.tag}"`);
+        }
+        
+        // If no filters and no search query, show all
+        const searchInput = document.getElementById('searchInput').value.trim();
+        let finalQuery = '*:*';
+        
+        if (queryParts.length > 0) {
+            finalQuery = queryParts.join(' AND ');
+            // If there's also a search query, combine them
+            if (searchInput) {
+                finalQuery = `(${finalQuery}) AND (${searchInput})`;
+            }
+        } else if (searchInput) {
+            finalQuery = searchInput;
+        }
+        
+        // Update search input to show active filters (optional)
+        // Perform search
+        const loading = document.getElementById('loading');
+        const results = document.getElementById('results');
+        const noResults = document.getElementById('noResults');
+        
+        loading.style.display = 'block';
+        results.innerHTML = '';
+        noResults.style.display = 'none';
+        
+        try {
+            await this.searchSolr(finalQuery);
+        } catch (error) {
+            console.error('Search error:', error);
+            let errorMessage = 'Error performing search. ';
+            if (error.message.includes('fetch') || error.message.includes('Failed to fetch')) {
+                errorMessage += 'Cannot connect to Solr server. Please make sure Solr is running on http://localhost:8983';
+            } else if (error.message.includes('CORS')) {
+                errorMessage += 'CORS error. Please check Solr CORS configuration.';
+            } else {
+                errorMessage += error.message || 'Please check the browser console for details.';
+            }
+            results.innerHTML = `<div class="no-results"><p>${errorMessage}</p><p style="font-size: 12px; color: #6c757d; margin-top: 10px;">If Solr is running, check browser console (F12) for more details.</p></div>`;
+        } finally {
+            loading.style.display = 'none';
+        }
     }
 
     highlightText(text, queryWords) {
@@ -359,9 +556,28 @@ class ArticleSearch {
         return sectionLabels[section] || section;
     }
 
-    displayStats() {
-        const count = this.articles.length;
-        document.getElementById('resultCount').textContent = count;
+    async displayStats() {
+        try {
+            // Use proxy to avoid CORS issues
+            const solrUrl = 'http://localhost:8888/solr/afuri_menu/select';
+            const params = new URLSearchParams({
+                q: '*:*',
+                rows: 0,
+                wt: 'json'
+            });
+
+            const response = await fetch(`${solrUrl}?${params}`);
+            if (response.ok) {
+                const data = await response.json();
+                const count = data.response?.numFound || 0;
+                document.getElementById('resultCount').textContent = count;
+            } else {
+                document.getElementById('resultCount').textContent = '?';
+            }
+        } catch (error) {
+            console.error('Error getting stats from Solr:', error);
+            document.getElementById('resultCount').textContent = '?';
+        }
     }
 }
 

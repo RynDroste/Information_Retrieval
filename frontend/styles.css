@@ -144,6 +144,23 @@ header {
     box-shadow: 0 3px 6px rgba(0, 0, 0, 0.2);
 }
 
+.clickable-tag {
+    cursor: pointer;
+    user-select: none;
+}
+
+.clickable-tag:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.25);
+    opacity: 0.9;
+}
+
+.clickable-tag.active {
+    box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.5), 0 4px 8px rgba(0, 0, 0, 0.3);
+    transform: scale(1.05);
+    font-weight: 600;
+}
+
 /* Special tag styles for menu, store, and brand labels */
 .tag-menu {
     background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%);
@@ -242,6 +259,73 @@ header h1 {
     padding: 15px 30px;
     background: white;
     border-bottom: 1px solid #e9ecef;
+}
+
+.active-filters {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 15px 30px;
+    background: #f8f9fa;
+    border-bottom: 1px solid #e9ecef;
+    flex-wrap: wrap;
+}
+
+.filter-label {
+    font-size: 14px;
+    font-weight: 600;
+    color: #495057;
+}
+
+.filter-tags {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    flex: 1;
+}
+
+.filter-tag {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 10px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+}
+
+.filter-tag:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.2);
+    background: linear-gradient(135deg, #5568d3 0%, #653a8f 100%);
+}
+
+.filter-tag::after {
+    content: ' ×';
+    margin-left: 6px;
+    font-weight: bold;
+    opacity: 0.8;
+}
+
+.clear-filters-btn {
+    padding: 6px 12px;
+    background: #6c757d;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.clear-filters-btn:hover {
+    background: #5a6268;
+    transform: translateY(-1px);
 }
 
 #sortBy {

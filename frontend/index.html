@@ -23,16 +23,6 @@
                 >
                 <button id="searchBtn">Search</button>
             </div>
-            <div class="search-options">
-                <label>
-                    <input type="radio" name="searchMode" value="local" checked>
-                    Local Search (JSON)
-                </label>
-                <label>
-                    <input type="radio" name="searchMode" value="solr">
-                    Solr Search
-                </label>
-            </div>
         </div>
 
         <div class="stats" id="stats">
@@ -45,6 +35,12 @@
                 <option value="title-asc">Title (A-Z)</option>
                 <option value="category">Category</option>
             </select>
+        </div>
+
+        <div id="activeFilters" class="active-filters" style="display: none;">
+            <span class="filter-label">当前筛选:</span>
+            <div id="filterTags" class="filter-tags"></div>
+            <button id="clearFilters" class="clear-filters-btn">清除所有筛选</button>
         </div>
 
         <div id="loading" class="loading" style="display: none;">
