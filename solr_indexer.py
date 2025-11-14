@@ -79,6 +79,10 @@ class SolrIndexer:
         if 'menu_category' in article and article['menu_category']:
             doc['menu_category'] = article['menu_category']
         
+        # Add ingredients if exists
+        if 'ingredients' in article and article['ingredients']:
+            doc['ingredients'] = article['ingredients']
+        
         # Add store information if exists
         if 'store_name' in article and article['store_name']:
             doc['store_name'] = article['store_name']

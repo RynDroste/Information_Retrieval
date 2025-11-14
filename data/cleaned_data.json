@@ -6,6 +6,7 @@
     "section": "Menu",
     "menu_item": "Yuzu Shio Ramen",
     "menu_category": "Ramen",
+    "ingredients": "chicken & dashi based broth, yuzu, half nitamago, chashu, mizuna, menma, nori",
     "tags": [
       "afuri"
     ]
@@ -17,6 +18,7 @@
     "section": "Menu",
     "menu_item": "Yuzu Shoyu Ramen",
     "menu_category": "Ramen",
+    "ingredients": "chicken & dashi based shoyu broth, yuzu, half nitamago, chashu, mizuna, menma, nori",
     "tags": [
       "afuri"
     ]
@@ -28,6 +30,7 @@
     "section": "Menu",
     "menu_item": "Shio Ramen",
     "menu_category": "Ramen",
+    "ingredients": "chicken & dashi based broth, half nitamago, chashu, mizuna, menma, nori",
     "tags": [
       "afuri"
     ]
@@ -39,6 +42,7 @@
     "section": "Menu",
     "menu_item": "Shoyu Ramen",
     "menu_category": "Ramen",
+    "ingredients": "chicken & dashi based shoyu broth, half nitamago, chashu, mizuna, menma, nori",
     "tags": [
       "afuri"
     ]
@@ -50,6 +54,7 @@
     "section": "Menu",
     "menu_item": "Yuzu Ratan Ramen",
     "menu_category": "Ramen",
+    "ingredients": "chicken & dashi based spicy broth, half nitamago, chashu, mizuna, menma, white negi, nori",
     "tags": [
       "afuri"
     ]
@@ -61,6 +66,7 @@
     "section": "Menu",
     "menu_item": "Rainbow Vegan Ramen",
     "menu_category": "Ramen",
+    "ingredients": "100% vegetable-based broth, fresh seasonal vegetables, wheat noodle blended with lotus root (no egg)",
     "tags": [
       "afuri"
     ]
@@ -72,6 +78,7 @@
     "section": "Menu",
     "menu_item": "Summer Limited Cold Yuzu Shio Ramen",
     "menu_category": "Ramen",
+    "ingredients": "chicken & dashi based cold broth, yuzu jelly, ginger, white negi, half nitamago, chashu, mizuna, menma, nori",
     "tags": [
       "afuri"
     ]
@@ -116,6 +123,7 @@
     "section": "Menu",
     "menu_item": "Ama-tsuyu Tsukemen",
     "menu_category": "Tsukemen",
+    "ingredients": "chicken & dashi based sweet dipping Tare, half nitamago, chashu, mizuna, menma, nori",
     "tags": [
       "afuri"
     ]
@@ -127,6 +135,7 @@
     "section": "Menu",
     "menu_item": "Yuzu-tsuyu Tsukemen",
     "menu_category": "Tsukemen",
+    "ingredients": "chicken & dashi based sweet dipping Tare, yuzu, half nitamago, chashu, mizuna, menma, nori",
     "tags": [
       "afuri"
     ]
@@ -138,6 +147,7 @@
     "section": "Menu",
     "menu_item": "Kara-tsuyu Tsukemen",
     "menu_category": "Tsukemen",
+    "ingredients": "chicken & dashi based spicy dipping Tare, half nitamago, chashu, mizuna, menma, nori, chili powder",
     "tags": [
       "afuri"
     ]
@@ -149,6 +159,7 @@
     "section": "Menu",
     "menu_item": "Yuzu-kara-tsuyu Tsukemen",
     "menu_category": "Tsukemen",
+    "ingredients": "chicken & dashi based spicy dipping Tare, yuzu, half nitamago, chashu, mizuna, menma, nori, chili powder",
     "tags": [
       "afuri"
     ]
@@ -204,6 +215,7 @@
     "section": "Menu",
     "menu_item": "Konnyaku Men",
     "menu_category": "Tsukemen",
+    "ingredients": "Made from Japanese yam root and housemade white-dashi, konjac noodle will be your health-friendly alternative also rich in fiber!",
     "tags": [
       "afuri"
     ]
@@ -215,6 +227,7 @@
     "section": "Menu",
     "menu_item": "Aburi Koro Pork Chashu Gohan",
     "menu_category": "Side Dishes",
+    "ingredients": "rice, grilled chashu, yuzu, daikon oroshi, green onion",
     "tags": [
       "afuri"
     ]
@@ -226,6 +239,7 @@
     "section": "Menu",
     "menu_item": "Pork Niku Gohan",
     "menu_category": "Side Dishes",
+    "ingredients": "rice, Japanese braised pork belly, white negi",
     "tags": [
       "afuri"
     ]
@@ -270,6 +284,7 @@
     "section": "Menu",
     "menu_item": "Pork Aburi Chashu 1 slice",
     "menu_category": "Side Dishes",
+    "ingredients": "Chashu, cooked over charcoal by order slice by slice.",
     "tags": [
       "afuri"
     ]
@@ -292,6 +307,7 @@
     "section": "Menu",
     "menu_item": "Nitamago",
     "menu_category": "Side Dishes",
+    "ingredients": "Soft boiled additive-free eggs with rich, orange, gooey yolks, Marinated overnight in special dashi.",
     "tags": [
       "afuri"
     ]
@@ -325,6 +341,7 @@
     "section": "Menu",
     "menu_item": "Mizuna",
     "menu_category": "Side Dishes",
+    "ingredients": "Japanese Mizuna, amazing element of antioxidant and detox.",
     "tags": [
       "afuri"
     ]
@@ -556,6 +573,7 @@
     "section": "Menu",
     "menu_item": "Chashu, cooked over charcoal by order slice by sli",
     "menu_category": "Side Dishes",
+    "ingredients": "AFURI Chashu, cooked over charcoal by order slice by slice.",
     "tags": [
       "afuri"
     ]
@@ -611,6 +629,7 @@
     "section": "Menu",
     "menu_item": "Pork Aburi Chashu",
     "menu_category": "Chi-yu",
+    "ingredients": "Japanese Mizuna, amazing element of antioxidant and detox.",
     "tags": [
       "afuri"
     ]
@@ -622,6 +641,7 @@
     "section": "Menu",
     "menu_item": "Nori",
     "menu_category": "Chi-yu",
+    "ingredients": "Japanese Mizuna, amazing element of antioxidant and detox.",
     "tags": [
       "afuri"
     ]

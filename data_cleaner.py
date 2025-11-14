@@ -92,6 +92,29 @@ class DataCleaner:
             cleaned['menu_item'] = article.get('menu_item', '').strip()
         if 'menu_category' in article:
             cleaned['menu_category'] = article.get('menu_category', '').strip()
+        
+        # Extract ingredients - first check if it exists, otherwise extract from content
+        ingredients = ''
+        if 'ingredients' in article and article.get('ingredients', '').strip():
+            ingredients = article.get('ingredients', '').strip()
+        else:
+            # Try to extract ingredients from content (usually the last line with comma-separated English ingredients)
+            content = cleaned.get('content', '')
+            if content and cleaned.get('section') == 'Menu':
+                lines = content.split('\n')
+                for line in reversed(lines):
+                    line = line.strip()
+                    # Check if line contains common ingredient patterns (comma-separated, lowercase/English)
+                    if ',' in line and len(line) > 20:
+                        # Check if it looks like ingredients (contains common food words)
+                        ingredient_keywords = ['broth', 'chashu', 'nori', 'egg', 'yuzu', 'menma', 'mizuna', 'dashi', 'shoyu', 'chicken', 'nitamago', 'negi']
+                        if any(keyword in line.lower() for keyword in ingredient_keywords):
+                            ingredients = line
+                            break
+        
+        if ingredients:
+            cleaned['ingredients'] = ingredients
+        
         if 'tags' in article and article.get('tags'):
             cleaned['tags'] = [tag.strip() for tag in article.get('tags', []) if tag.strip()]
         

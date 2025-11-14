@@ -100,14 +100,16 @@ class ArticleSearch {
             const content = (article.content || '').toLowerCase();
             const menuItem = (article.menu_item || '').toLowerCase();
             const menuCategory = (article.menu_category || '').toLowerCase();
+            const ingredients = (article.ingredients || '').toLowerCase();
             const url = (article.url || '').toLowerCase();
 
-            // Check if all query words appear in title, content, menu_item, menu_category, or URL
+            // Check if all query words appear in title, content, menu_item, menu_category, ingredients, or URL
             return queryWords.every(word => 
                 title.includes(word) || 
                 content.includes(word) || 
                 menuItem.includes(word) ||
                 menuCategory.includes(word) ||
+                ingredients.includes(word) ||
                 url.includes(word)
             );
         });
@@ -147,6 +149,7 @@ class ArticleSearch {
                     section: doc.section || '',
                     menu_item: doc.menu_item || '',
                     menu_category: doc.menu_category || '',
+                    ingredients: doc.ingredients || '',
                     store_name: doc.store_name || '',
                     date: doc.date || '',
                     tags: doc.tags || []
@@ -216,39 +219,49 @@ class ArticleSearch {
             const storeName = article.store_name || '';
             const tags = article.tags || [];
             const section = article.section || '';
+            const ingredients = article.ingredients || '';
 
-            // For menu items: first line shows "菜单: Ramen", second line shows "店铺: #afuri"
+            // For menu items: first line shows "菜单: Ramen", second line shows "店铺: #afuri", third line shows ingredients
             // For stores: only show "店铺: #afuri"
             let categoryLine = '';
             let tagsLine = '';
+            let ingredientsLine = '';
             
             if (section === 'Menu' && menuCategory) {
-                // Menu items: first line shows "菜单: Ramen"
+                // Menu items: first line shows "菜单" and "Ramen" as tags
                 categoryLine = `<div class="category-line">
-                    <span class="section-label">菜单:</span>
+                    <span class="tag-badge tag-menu">菜单</span>
                     <span class="category-badge category-${menuCategory.toLowerCase().replace(' ', '-')}">${menuCategory}</span>
                 </div>`;
                 
-                // Second line shows "店铺: #afuri"
+                // Second line shows "店铺" and "#afuri" as tags
                 tagsLine = tags.length > 0 ? `
                     <div class="tags-line">
-                        <span class="section-label">店铺:</span>
+                        <span class="tag-badge tag-store">店铺</span>
                         ${tags.map(tag => `<span class="tag-badge">#${tag}</span>`).join('')}
                     </div>
                 ` : '';
+                
+                // Third line shows ingredients
+                ingredientsLine = ingredients ? `
+                    <div class="ingredients-line">
+                        <span class="section-label">原材料:</span>
+                        <span class="ingredients-text">${ingredients}</span>
+                    </div>
+                ` : '';
             } else if (section === 'Store Information') {
-                // Stores: only show "店铺: #afuri"
+                // Stores: show "店铺" and "#afuri" as tags
                 tagsLine = tags.length > 0 ? `
                     <div class="tags-line">
-                        <span class="section-label">店铺:</span>
+                        <span class="tag-badge tag-store">店铺</span>
                         ${tags.map(tag => `<span class="tag-badge">#${tag}</span>`).join('')}
                     </div>
                 ` : '';
             } else if (section === 'Brand Information') {
-                // Brand: show "品牌: #afuri"
+                // Brand: show "品牌" and "#afuri" as tags
                 tagsLine = tags.length > 0 ? `
                     <div class="tags-line">
-                        <span class="section-label">品牌:</span>
+                        <span class="tag-badge tag-brand">品牌</span>
                         ${tags.map(tag => `<span class="tag-badge">#${tag}</span>`).join('')}
                     </div>
                 ` : '';
@@ -259,6 +272,7 @@ class ArticleSearch {
                     <h2><a href="${article.url}" target="_blank">${highlightedTitle}</a></h2>
                     ${categoryLine}
                     ${tagsLine}
+                    ${ingredientsLine}
                     <div class="article-meta">
                         ${menuItem && menuItem !== article.title ? `<span>🍜 ${menuItem}</span>` : ''}
                         ${storeName ? `<span>📍 ${storeName}</span>` : ''}

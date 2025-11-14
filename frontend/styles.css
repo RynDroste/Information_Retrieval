@@ -29,42 +29,49 @@ header {
 }
 
 .category-badge {
-    display: inline-block;
-    padding: 4px 12px;
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 8px;
     border-radius: 12px;
-    font-size: 12px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
+    font-size: 10px;
+    font-weight: 500;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+    transition: transform 0.2s, box-shadow 0.2s;
+    cursor: default;
+}
+
+.category-badge:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.2);
 }
 
 .category-ramen {
-    background: #ff6b6b;
+    background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%);
     color: white;
 }
 
 .category-tsukemen {
-    background: #4ecdc4;
+    background: linear-gradient(135deg, #4ecdc4 0%, #44a08d 100%);
     color: white;
 }
 
 .category-noodles {
-    background: #ffe66d;
+    background: linear-gradient(135deg, #ffe66d 0%, #ffd93d 100%);
     color: #333;
 }
 
 .category-side-dishes {
-    background: #95e1d3;
+    background: linear-gradient(135deg, #95e1d3 0%, #7dd3c0 100%);
     color: #333;
 }
 
 .category-drinks {
-    background: #a8e6cf;
+    background: linear-gradient(135deg, #a8e6cf 0%, #88d4b8 100%);
     color: #333;
 }
 
 .category-chi-yu {
-    background: #ffd93d;
+    background: linear-gradient(135deg, #ffd93d 0%, #ffcc00 100%);
     color: #333;
 }
 
@@ -86,6 +93,22 @@ header {
     margin-bottom: 8px;
     padding-bottom: 8px;
     border-bottom: 1px solid #e9ecef;
+}
+
+.ingredients-line {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    margin-bottom: 8px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.ingredients-text {
+    font-size: 13px;
+    color: #495057;
+    line-height: 1.5;
+    flex: 1;
 }
 
 .section-label {
@@ -111,24 +134,28 @@ header {
     font-weight: 500;
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     color: white;
-    box-shadow: 0 2px 4px rgba(102, 126, 234, 0.2);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
     transition: transform 0.2s, box-shadow 0.2s;
     cursor: default;
 }
 
 .tag-badge:hover {
     transform: translateY(-1px);
-    box-shadow: 0 3px 6px rgba(102, 126, 234, 0.3);
+    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.2);
 }
 
-.tag-badge::before {
-    content: '';
-    display: inline-block;
-    width: 5px;
-    height: 5px;
-    border-radius: 50%;
-    background: rgba(255, 255, 255, 0.8);
-    margin-right: 3px;
+/* Special tag styles for menu, store, and brand labels */
+.tag-menu {
+    background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%);
+}
+
+.tag-store {
+    background: linear-gradient(135deg, #4ecdc4 0%, #44a08d 100%);
+}
+
+.tag-brand {
+    background: linear-gradient(135deg, #ffe66d 0%, #ffd93d 100%);
+    color: #333;
 }
 
 header h1 {

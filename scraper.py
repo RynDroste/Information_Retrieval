@@ -149,6 +149,20 @@ class RamenScraper:
                         
                         # Add AFURI keyword to content and tags
                         content_with_afuri = f"AFURI {text}" if "AFURI" not in text.upper() else text
+                        
+                        # Extract ingredients (usually the last line with comma-separated English ingredients)
+                        ingredients = ''
+                        lines = text.split('\n')
+                        for line in reversed(lines):
+                            line = line.strip()
+                            # Check if line contains common ingredient patterns (comma-separated, lowercase/English)
+                            if ',' in line and len(line) > 20:
+                                # Check if it looks like ingredients (contains common food words)
+                                ingredient_keywords = ['broth', 'chashu', 'nori', 'egg', 'yuzu', 'menma', 'mizuna', 'dashi', 'shoyu', 'chicken']
+                                if any(keyword in line.lower() for keyword in ingredient_keywords):
+                                    ingredients = line
+                                    break
+                        
                         menu_data = {
                             'url': url,
                             'title': item_name,
@@ -156,6 +170,7 @@ class RamenScraper:
                             'section': 'Menu',
                             'menu_item': item_name,
                             'menu_category': item_category,
+                            'ingredients': ingredients,
                             'date': '',
                             'author': '',
                             'tags': ['afuri'],
