@@ -9,6 +9,7 @@ import requests
 from bs4 import BeautifulSoup
 import json
 import os
+import re
 from urllib.parse import urljoin
 
 class RamenScraper:
@@ -31,6 +32,54 @@ class RamenScraper:
         except requests.RequestException as e:
             print(f"Failed to fetch page {url}: {e}")
             return None
+    
+    def is_descriptive_text(self, text):
+        """Check if text is a descriptive sentence rather than a menu item name"""
+        # Known menu item names that should never be filtered
+        known_menu_items = [
+            'Yuzu Shio Ramen', 'Yuzu Shoyu Ramen', 'Shio Ramen', 'Shoyu Ramen',
+            'Yuzu Ratan Ramen', 'Rainbow Vegan Ramen', 'Summer Limited Cold Yuzu Shio Ramen',
+            'Ama-tsuyu Tsukemen', 'Yuzu-tsuyu Tsukemen', 'Kara-tsuyu Tsukemen', 'Yuzu-kara-tsuyu Tsukemen',
+            'Gokuboso Men', 'Temomi Men', 'Konnyaku Men',
+            'Aburi Koro Pork Chashu Gohan', 'Pork Niku Gohan', 'Hongarebushi Okaka Gohan',
+            'Tare Gohan', 'Gohan', 'Pork Aburi Chashu', 'Kaku-ni Chashu',
+            'Nitamago', 'Menma', 'Nori', 'Mizuna', 'Nori 7 pieces',
+            'Draft Beer', 'Whisky Soda AFURI\'s style', 'Japanese SAKE'
+        ]
+        
+        # If it's a known menu item, don't filter it
+        if text in known_menu_items or any(text.startswith(item) for item in known_menu_items if len(item) > 10):
+            return False
+        
+        # Descriptive patterns that indicate this is not a menu item name
+        descriptive_patterns = [
+            'お選び', 'お楽しみ', 'いただけます', 'ご用意', 'ご変更',
+            'は、', 'の量を', 'の麺は', 'の喉越し', 'を最大限に',
+            'から', 'へ', 'など', '♡', '。', '、',
+            '選び', '変更', '用意', 'お召し上がり', 'お好みで'
+        ]
+        
+        # Check if text starts with descriptive patterns
+        if any(text.startswith(pattern) for pattern in ['麺は', 'らーめんの', 'つけ麺の', '鶏油の', 'AFURIの', 'AFURIが', 'つるつるの']):
+            return True
+        
+        # Check if text contains multiple descriptive patterns
+        pattern_count = sum(1 for pattern in descriptive_patterns if pattern in text)
+        if pattern_count >= 2:
+            return True
+        
+        # Check if text is too long (descriptions are usually longer than menu item names)
+        # But allow longer known menu items
+        if len(text) > 60 and not any(item in text for item in known_menu_items if len(item) > 20):
+            return True
+        
+        # Check if text contains sentence-ending punctuation and is descriptive
+        if ('。' in text or '、' in text) and len(text) > 30:
+            # But allow if it's a known menu item that happens to have punctuation
+            if not any(item in text[:50] for item in known_menu_items):
+                return True
+        
+        return False
     
     def parse_menu_page(self, soup, url):
         """Parse AFURI menu page - extract detailed menu items"""
@@ -67,6 +116,17 @@ class RamenScraper:
             
             if item_category:
                 item_name = text.split('\n')[0].strip()[:50] if '\n' in text else text[:50]
+                
+                # Skip if this is descriptive text, not a menu item name
+                if self.is_descriptive_text(item_name):
+                    continue
+                
+                # Check for known side dishes by name first (before checking text content)
+                if item_name in ['Nori', 'Menma', 'Mizuna', 'Nitamago', 'Chashu', 'Pork Aburi Chashu', 'Kaku-ni Chashu']:
+                    item_category = 'Side Dishes'
+                # Check if name contains Tsukemen and set category accordingly
+                elif 'Tsukemen' in item_name or 'tsukemen' in item_name.lower():
+                    item_category = 'Tsukemen'
                 # Add AFURI keyword to content and tags
                 content_with_afuri = f"AFURI {text}" if "AFURI" not in text.upper() else text
                 menu_data = {
@@ -92,12 +152,25 @@ class RamenScraper:
             if any(keyword in text for keyword in ['Ramen', 'Tsukemen', 'Chashu', 'Men', 'Gohan', 'Beer', 
                                                    'らーめん', 'つけ麺', 'チャーシュー', '麺', 'ごはん']):
                 item_name = text.split('\n')[0].strip()[:50]
+                
+                # Skip if this is descriptive text, not a menu item name
+                if self.is_descriptive_text(item_name):
+                    continue
+                
                 if not any(item['menu_item'] == item_name for item in menu_items):
                     item_category = 'Ramen'
-                    for cat_name, keywords in categories.items():
-                        if any(keyword in text for keyword in keywords):
-                            item_category = cat_name
-                            break
+                    # Check for known side dishes by name first (before checking text content)
+                    if item_name in ['Nori', 'Menma', 'Mizuna', 'Nitamago', 'Chashu', 'Pork Aburi Chashu', 'Kaku-ni Chashu']:
+                        item_category = 'Side Dishes'
+                    else:
+                        for cat_name, keywords in categories.items():
+                            if any(keyword in text for keyword in keywords):
+                                item_category = cat_name
+                                break
+                    
+                    # Check if name contains Tsukemen and set category accordingly
+                    if 'Tsukemen' in item_name or 'tsukemen' in item_name.lower():
+                        item_category = 'Tsukemen'
                     
                     # Add AFURI keyword to content and tags
                     content_with_afuri = f"AFURI {text}" if "AFURI" not in text.upper() else text
@@ -116,6 +189,7 @@ class RamenScraper:
                     menu_items.append(menu_data)
         
         # Extract specific menu items by name
+        # Sort by length (longest first) to avoid matching shorter names when longer ones exist
         menu_item_names = [
             'Yuzu Shio Ramen', 'Yuzu Shoyu Ramen', 'Shio Ramen', 'Shoyu Ramen',
             'Yuzu Ratan Ramen', 'Rainbow Vegan Ramen', 'Summer Limited Cold Yuzu Shio Ramen',
@@ -123,43 +197,136 @@ class RamenScraper:
             'Gokuboso Men', 'Temomi Men', 'Konnyaku Men',
             'Aburi Koro Pork Chashu Gohan', 'Pork Niku Gohan', 'Hongarebushi Okaka Gohan',
             'Tare Gohan', 'Gohan', 'Pork Aburi Chashu', 'Kaku-ni Chashu',
-            'Nitamago', 'Menma', 'Nori', 'Mizuna',
+            'Nitamago', 'Menma', 'Nori 7 pieces', 'Nori', 'Mizuna',
             'Draft Beer', 'Whisky Soda AFURI\'s style', 'Japanese SAKE'
         ]
+        
+        # Sort by length (longest first) to prioritize more specific names
+        menu_item_names.sort(key=len, reverse=True)
         
         for item_name in menu_item_names:
             if any(item['menu_item'] == item_name for item in menu_items):
                 continue
             
             if item_name in all_text:
+                # Check if a more specific version of this item already exists
+                # For example, if "Nori 7 pieces" exists, don't add "Nori"
+                has_more_specific = False
+                for existing_item in menu_items:
+                    existing_name = existing_item.get('menu_item', '')
+                    # Check if existing item is a more specific version (contains current item name + more)
+                    if existing_name != item_name and item_name in existing_name and len(existing_name) > len(item_name):
+                        has_more_specific = True
+                        break
+                
+                if has_more_specific:
+                    continue
+                
                 for elem in soup.find_all(['p', 'li', 'div']):
                     text = elem.get_text().strip()
-                    if item_name in text and len(text) > len(item_name) + 10:
+                    # Check for exact match or match followed by space/newline/punctuation
+                    # This avoids partial matches like "Nori" matching "Nori 7 pieces"
+                    # But allows "Nori" to match "Nori\n" or "Nori " or "Nori."
+                    item_name_escaped = re.escape(item_name)
+                    # Match item_name at word boundary, followed by space, newline, punctuation, or end of string
+                    pattern = r'\b' + item_name_escaped + r'(?:\s|$|[。、，,\.\n])'
+                    if re.search(pattern, text) and len(text) > len(item_name) + 10:
+                        # Additional check: if text contains a longer menu item name that includes this one, skip
+                        # For example, if text contains "Nori 7 pieces", don't match "Nori"
+                        should_skip = False
+                        for other_item in menu_item_names:
+                            if other_item != item_name and len(other_item) > len(item_name) and item_name in other_item:
+                                if other_item in text:
+                                    should_skip = True
+                                    break
+                        if should_skip:
+                            continue
+                        # Extract only the relevant content for this menu item
+                        # Find the menu item name in the text and extract content after it
+                        item_name_index = text.find(item_name)
+                        relevant_content = ''
+                        text_after_item = ''
+                        
+                        if item_name_index >= 0:
+                            # Get text after the menu item name
+                            text_after_item = text[item_name_index + len(item_name):].strip()
+                            
+                            # Extract content until we hit another menu item name or a clear separator
+                            # Look for the next menu item name or stop at certain patterns
+                            lines = text_after_item.split('\n')
+                            relevant_lines = []
+                            for line in lines:
+                                line = line.strip()
+                                if not line:
+                                    # If we hit an empty line after some content, it might be a separator
+                                    if len(relevant_lines) > 0:
+                                        # Check if next non-empty line looks like another menu item
+                                        break
+                                    continue
+                                
+                                # Stop if we encounter another menu item name (check against all known menu items)
+                                is_another_menu_item = False
+                                for other_item in menu_item_names:
+                                    if other_item != item_name and line.startswith(other_item):
+                                        is_another_menu_item = True
+                                        break
+                                
+                                if is_another_menu_item:
+                                    break
+                                
+                                # Stop if we hit certain section markers
+                                if line in ['アレルゲン情報Allergen information', 'Allergen information', 
+                                           'アレルゲン情報', '* All our rice']:
+                                    break
+                                
+                                relevant_lines.append(line)
+                            
+                            # Use only the relevant content, not the entire text
+                            relevant_content = '\n'.join(relevant_lines).strip()
+                            if not relevant_content:
+                                # Fallback: use text after item name, but limit to reasonable length
+                                relevant_content = text_after_item[:500].strip()
+                            
+                            # Use the original item name + relevant content
+                            item_content = f"{item_name}\n{relevant_content}" if relevant_content else item_name
+                        else:
+                            item_content = text
+                        
                         item_category = 'Ramen'
-                        if 'Men' in item_name and 'Tsukemen' not in item_name and 'Ramen' not in item_name:
+                        # Check if name contains Tsukemen first
+                        if 'Tsukemen' in item_name or 'tsukemen' in item_name.lower():
+                            item_category = 'Tsukemen'
+                        elif 'Men' in item_name and 'Tsukemen' not in item_name and 'Ramen' not in item_name:
                             item_category = 'Noodles'
                         elif 'Gohan' in item_name:
                             item_category = 'Side Dishes'
                         elif 'Beer' in item_name or 'Whisky' in item_name or 'SAKE' in item_name:
                             item_category = 'Drinks'
-                        elif 'Chi-yu' in text or '鶏油' in text:
+                        # Check for known side dishes by name (before checking text content)
+                        elif item_name in ['Nori', 'Menma', 'Mizuna', 'Nitamago', 'Chashu', 'Pork Aburi Chashu', 'Kaku-ni Chashu']:
+                            item_category = 'Side Dishes'
+                        # Only check text content for Chi-yu if not already categorized
+                        elif item_category == 'Ramen' and ('Chi-yu' in text or '鶏油' in text):
                             item_category = 'Chi-yu'
                         
                         # Add AFURI keyword to content and tags
-                        content_with_afuri = f"AFURI {text}" if "AFURI" not in text.upper() else text
+                        content_with_afuri = f"AFURI {item_content}" if "AFURI" not in item_content.upper() else item_content
                         
-                        # Extract ingredients (usually the last line with comma-separated English ingredients)
+                        # Extract ingredients from the relevant content
                         ingredients = ''
-                        lines = text.split('\n')
-                        for line in reversed(lines):
-                            line = line.strip()
-                            # Check if line contains common ingredient patterns (comma-separated, lowercase/English)
-                            if ',' in line and len(line) > 20:
-                                # Check if it looks like ingredients (contains common food words)
-                                ingredient_keywords = ['broth', 'chashu', 'nori', 'egg', 'yuzu', 'menma', 'mizuna', 'dashi', 'shoyu', 'chicken']
-                                if any(keyword in line.lower() for keyword in ingredient_keywords):
-                                    ingredients = line
-                                    break
+                        # Use relevant_content if available, otherwise use text_after_item
+                        content_to_search = relevant_content if relevant_content else text_after_item
+                        if content_to_search:
+                            lines = content_to_search.split('\n')
+                            for line in reversed(lines):
+                                line = line.strip()
+                                # Check if line contains common ingredient patterns (comma-separated, lowercase/English)
+                                if ',' in line and len(line) > 20:
+                                    # Check if it looks like ingredients (contains common food words)
+                                    ingredient_keywords = ['broth', 'chashu', 'nori', 'egg', 'yuzu', 'menma', 'mizuna', 'dashi', 'shoyu', 'chicken', 'rice', 'pork', 'beef', 'seaweed', 'ginger', 'negi', 'onion']
+                                    if any(keyword in line.lower() for keyword in ingredient_keywords):
+                                        ingredients = line
+                                        break
                         
                         menu_data = {
                             'url': url,
@@ -491,5 +658,3 @@ class RamenScraper:
         
         print(f"\nData saved to: {filepath}")
         return filepath
-
-# This file is used as a module only. Use run_pipeline.py to run the complete pipeline.

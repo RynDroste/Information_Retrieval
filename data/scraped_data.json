@@ -85,20 +85,6 @@
   },
   {
     "url": "https://afuri.com/menu/",
-    "title": "麺は、卵不使用のレンコンつなぎ麺です。",
-    "content": "AFURI 麺は、卵不使用のレンコンつなぎ麺です。",
-    "section": "Menu",
-    "menu_item": "麺は、卵不使用のレンコンつなぎ麺です。",
-    "menu_category": "Noodles",
-    "date": "",
-    "author": "",
-    "tags": [
-      "afuri"
-    ],
-    "categories": []
-  },
-  {
-    "url": "https://afuri.com/menu/",
     "title": "Summer Limited Cold Yuzu Shio Ramen",
     "content": "Summer Limited Cold Yuzu Shio Ramen\nAFURI夏の風物詩。一番人気の柚子塩らーめんを冷製スープでさっぱりとお召し上がりいただける、冷やしらーめんです。自家製の柚子ジュレとおろし生姜が一口ごとにスープに溶け出し、味の変化をお楽しみいただけます。\nchicken & dashi based cold broth, yuzu jelly, ginger, white negi, half nitamago, chashu, mizuna, menma, nori",
     "section": "Menu",
@@ -127,39 +113,11 @@
   },
   {
     "url": "https://afuri.com/menu/",
-    "title": "らーめんの麺は、お好みで「真空手揉み麺」又は「こんにゃく細麺」へご変更いただけます。",
-    "content": "AFURI らーめんの麺は、お好みで「真空手揉み麺」又は「こんにゃく細麺」へご変更いただけます。",
-    "section": "Menu",
-    "menu_item": "らーめんの麺は、お好みで「真空手揉み麺」又は「こんにゃく細麺」へご変更いただけます。",
-    "menu_category": "Noodles",
-    "date": "",
-    "author": "",
-    "tags": [
-      "afuri"
-    ],
-    "categories": []
-  },
-  {
-    "url": "https://afuri.com/menu/",
-    "title": "鶏油の量を、通常量の「淡麗（たんれい）」と少し多めの「まろ味（まろあじ）」からお選びいただけます。",
-    "content": "AFURI 鶏油の量を、通常量の「淡麗（たんれい）」と少し多めの「まろ味（まろあじ）」からお選びいただけます。",
-    "section": "Menu",
-    "menu_item": "鶏油の量を、通常量の「淡麗（たんれい）」と少し多めの「まろ味（まろあじ）」からお選びいただけます。",
-    "menu_category": "Chi-yu",
-    "date": "",
-    "author": "",
-    "tags": [
-      "afuri"
-    ],
-    "categories": []
-  },
-  {
-    "url": "https://afuri.com/menu/",
     "title": "Ama-tsuyu Tsukemen",
     "content": "AFURI Ama-tsuyu Tsukemen\n国産の丸鶏・香味野菜をベースに魚介醤油で甘めに仕上げたつけダレ。冷製ダレが魚介醤油の豊かな風味を引き出します。\nchicken & dashi based sweet dipping Tare, half nitamago, chashu, mizuna, menma, nori",
     "section": "Menu",
     "menu_item": "Ama-tsuyu Tsukemen",
-    "menu_category": "Ramen",
+    "menu_category": "Tsukemen",
     "date": "",
     "author": "",
     "tags": [
@@ -173,7 +131,7 @@
     "content": "Yuzu-tsuyu Tsukemen\nシンプルな甘露に、AFURIらしく柚子を加えた一品。味と香りの余韻までお楽しみいただけます。\nchicken & dashi based sweet dipping Tare, yuzu, half nitamago, chashu, mizuna, menma, nori",
     "section": "Menu",
     "menu_item": "Yuzu-tsuyu Tsukemen",
-    "menu_category": "Ramen",
+    "menu_category": "Tsukemen",
     "date": "",
     "author": "",
     "tags": [
@@ -187,7 +145,7 @@
     "content": "AFURI Kara-tsuyu Tsukemen\n唐辛子パウダーを纏った麺に、自家製辣油を加えた一品。辛さの中に、じんわりと深い旨味を感じる一品。\nchicken & dashi based spicy dipping Tare, half nitamago, chashu, mizuna, menma, nori, chili powder",
     "section": "Menu",
     "menu_item": "Kara-tsuyu Tsukemen",
-    "menu_category": "Ramen",
+    "menu_category": "Tsukemen",
     "date": "",
     "author": "",
     "tags": [
@@ -201,35 +159,7 @@
     "content": "AFURI Yuzu-kara-tsuyu Tsukemen\n唐辛子パウダーを纏った麺に、自家製辣油を加えた一品。辛さの中に、じんわりと深い旨味を感じる一品。\nchicken & dashi based spicy dipping Tare, yuzu, half nitamago, chashu, mizuna, menma, nori, chili powder",
     "section": "Menu",
     "menu_item": "Yuzu-kara-tsuyu Tsukemen",
-    "menu_category": "Ramen",
-    "date": "",
-    "author": "",
-    "tags": [
-      "afuri"
-    ],
-    "categories": []
-  },
-  {
-    "url": "https://afuri.com/menu/",
-    "title": "「熱い麺」と「冷たい麺」からお選びいただけます。（つけダレは冷製でご用意）",
-    "content": "AFURI 「熱い麺」と「冷たい麺」からお選びいただけます。（つけダレは冷製でご用意）",
-    "section": "Menu",
-    "menu_item": "「熱い麺」と「冷たい麺」からお選びいただけます。（つけダレは冷製でご用意）",
-    "menu_category": "Noodles",
-    "date": "",
-    "author": "",
-    "tags": [
-      "afuri"
-    ],
-    "categories": []
-  },
-  {
-    "url": "https://afuri.com/menu/",
-    "title": "つけ麺の麺は、お好みで「こんにゃく太麺」へご変更いただけます。",
-    "content": "AFURI つけ麺の麺は、お好みで「こんにゃく太麺」へご変更いただけます。",
-    "section": "Menu",
-    "menu_item": "つけ麺の麺は、お好みで「こんにゃく太麺」へご変更いただけます。",
-    "menu_category": "Ramen",
+    "menu_category": "Tsukemen",
     "date": "",
     "author": "",
     "tags": [
@@ -477,67 +407,11 @@
   },
   {
     "url": "https://afuri.com/menu/",
-    "title": "国産の丸鶏・魚介・香味野菜など厳選素材を、清らかな水でじっくりと時間をかけて炊き上げたスープ。ほのか",
-    "content": "AFURI 国産の丸鶏・魚介・香味野菜など厳選素材を、清らかな水でじっくりと時間をかけて炊き上げたスープ。ほのかな麦の香りが上品に香る細麺に、一枚一枚丁寧に炙るチャーシュー、とろっとした半熟煮玉子が食欲をそそります。",
-    "section": "Menu",
-    "menu_item": "国産の丸鶏・魚介・香味野菜など厳選素材を、清らかな水でじっくりと時間をかけて炊き上げたスープ。ほのか",
-    "menu_category": "Noodles",
-    "date": "",
-    "author": "",
-    "tags": [
-      "afuri"
-    ],
-    "categories": []
-  },
-  {
-    "url": "https://afuri.com/menu/",
     "title": "We offer you the authentic Japanese Ramen with the",
     "content": "AFURI We offer you the authentic Japanese Ramen with the best-qualified ingredients from pure spring water, seafood eats and regional fresh vegetables.",
     "section": "Menu",
     "menu_item": "We offer you the authentic Japanese Ramen with the",
     "menu_category": "Ramen",
-    "date": "",
-    "author": "",
-    "tags": [
-      "afuri"
-    ],
-    "categories": []
-  },
-  {
-    "url": "https://afuri.com/menu/",
-    "title": "彩り豊かな、採れたて野菜を贅沢に使用した、ヴィーガンの方もお召し上がりいただけるらーめん。スープから",
-    "content": "AFURI 彩り豊かな、採れたて野菜を贅沢に使用した、ヴィーガンの方もお召し上がりいただけるらーめん。スープから具材まで植物性100％で、野菜の旨みを最大限に引き出しました。",
-    "section": "Menu",
-    "menu_item": "彩り豊かな、採れたて野菜を贅沢に使用した、ヴィーガンの方もお召し上がりいただけるらーめん。スープから",
-    "menu_category": "Ramen",
-    "date": "",
-    "author": "",
-    "tags": [
-      "afuri"
-    ],
-    "categories": []
-  },
-  {
-    "url": "https://afuri.com/menu/",
-    "title": "AFURI夏の風物詩。一番人気の柚子塩らーめんを冷製スープでさっぱりとお召し上がりいただける、冷やし",
-    "content": "AFURI夏の風物詩。一番人気の柚子塩らーめんを冷製スープでさっぱりとお召し上がりいただける、冷やしらーめんです。自家製の柚子ジュレとおろし生姜が一口ごとにスープに溶け出し、味の変化をお楽しみいただけます。",
-    "section": "Menu",
-    "menu_item": "AFURI夏の風物詩。一番人気の柚子塩らーめんを冷製スープでさっぱりとお召し上がりいただける、冷やし",
-    "menu_category": "Ramen",
-    "date": "",
-    "author": "",
-    "tags": [
-      "afuri"
-    ],
-    "categories": []
-  },
-  {
-    "url": "https://afuri.com/menu/",
-    "title": "「桜えびの塩らーめん」「栗の担々麺」「冬の味噌らーめん」「鶏白湯らーめん」など、旬の素材を活かしたら",
-    "content": "AFURI 「桜えびの塩らーめん」「栗の担々麺」「冬の味噌らーめん」「鶏白湯らーめん」など、旬の素材を活かしたらーめんを季節限定でお届けします。",
-    "section": "Menu",
-    "menu_item": "「桜えびの塩らーめん」「栗の担々麺」「冬の味噌らーめん」「鶏白湯らーめん」など、旬の素材を活かしたら",
-    "menu_category": "Noodles",
     "date": "",
     "author": "",
     "tags": [
@@ -561,53 +435,11 @@
   },
   {
     "url": "https://afuri.com/menu/",
-    "title": "つるつるの麺の喉越しを最大限にお楽しみいただくために、つけダレは冷製でご用意。",
-    "content": "AFURI つるつるの麺の喉越しを最大限にお楽しみいただくために、つけダレは冷製でご用意。\n\t\t\t\t\t弾力のある真空手揉み麺と、極上の鶏油の風味がクセになる一品。",
-    "section": "Menu",
-    "menu_item": "つるつるの麺の喉越しを最大限にお楽しみいただくために、つけダレは冷製でご用意。",
-    "menu_category": "Chi-yu",
-    "date": "",
-    "author": "",
-    "tags": [
-      "afuri"
-    ],
-    "categories": []
-  },
-  {
-    "url": "https://afuri.com/menu/",
     "title": "Tsukemen also known as dipping ramen, comes with t",
     "content": "AFURI Tsukemen also known as dipping ramen, comes with thick bouncy noodles and cold dipping Tare in separate bowls.",
     "section": "Menu",
     "menu_item": "Tsukemen also known as dipping ramen, comes with t",
-    "menu_category": "Ramen",
-    "date": "",
-    "author": "",
-    "tags": [
-      "afuri"
-    ],
-    "categories": []
-  },
-  {
-    "url": "https://afuri.com/menu/",
-    "title": "唐辛子パウダーを纏った麺に、自家製辣油を加えた一品。辛さの中に、じんわりと深い旨味を感じる一品。",
-    "content": "AFURI 唐辛子パウダーを纏った麺に、自家製辣油を加えた一品。辛さの中に、じんわりと深い旨味を感じる一品。",
-    "section": "Menu",
-    "menu_item": "唐辛子パウダーを纏った麺に、自家製辣油を加えた一品。辛さの中に、じんわりと深い旨味を感じる一品。",
-    "menu_category": "Noodles",
-    "date": "",
-    "author": "",
-    "tags": [
-      "afuri"
-    ],
-    "categories": []
-  },
-  {
-    "url": "https://afuri.com/menu/",
-    "title": "細挽きの全粒粉とライ麦を配合した、ヘルシーな極細麺。しっかりとした歯ごたえに、ほのかな麦の香が上品に",
-    "content": "AFURI 細挽きの全粒粉とライ麦を配合した、ヘルシーな極細麺。しっかりとした歯ごたえに、ほのかな麦の香が上品に香ります。",
-    "section": "Menu",
-    "menu_item": "細挽きの全粒粉とライ麦を配合した、ヘルシーな極細麺。しっかりとした歯ごたえに、ほのかな麦の香が上品に",
-    "menu_category": "Noodles",
+    "menu_category": "Tsukemen",
     "date": "",
     "author": "",
     "tags": [
@@ -631,80 +463,10 @@
   },
   {
     "url": "https://afuri.com/menu/",
-    "title": "手揉みタイプの平打ち麺。真空ミキサーで余分な空気を入れずに製麺するため、もちもちした食感がお楽しみい",
-    "content": "AFURI 手揉みタイプの平打ち麺。真空ミキサーで余分な空気を入れずに製麺するため、もちもちした食感がお楽しみいただけます。",
-    "section": "Menu",
-    "menu_item": "手揉みタイプの平打ち麺。真空ミキサーで余分な空気を入れずに製麺するため、もちもちした食感がお楽しみい",
-    "menu_category": "Noodles",
-    "date": "",
-    "author": "",
-    "tags": [
-      "afuri"
-    ],
-    "categories": []
-  },
-  {
-    "url": "https://afuri.com/menu/",
-    "title": "食物繊維が豊富で、低カロリーな国産こんにゃく麺。隠し味の白出汁が効いています。らーめんには「細麺タイ",
-    "content": "AFURI 食物繊維が豊富で、低カロリーな国産こんにゃく麺。隠し味の白出汁が効いています。らーめんには「細麺タイプ」、つけ麺には「太麺タイプ」がオススメ。",
-    "section": "Menu",
-    "menu_item": "食物繊維が豊富で、低カロリーな国産こんにゃく麺。隠し味の白出汁が効いています。らーめんには「細麺タイ",
-    "menu_category": "Ramen",
-    "date": "",
-    "author": "",
-    "tags": [
-      "afuri"
-    ],
-    "categories": []
-  },
-  {
-    "url": "https://afuri.com/menu/",
     "title": "AFURIで人気の「炙りチャーシュー」をご飯で！ジューシーに炙った脂の甘みを柚子風味の大根おろしでさ",
     "content": "AFURIで人気の「炙りチャーシュー」をご飯で！ジューシーに炙った脂の甘みを柚子風味の大根おろしでさっぱりとお召し上がりいただける一品。",
     "section": "Menu",
     "menu_item": "AFURIで人気の「炙りチャーシュー」をご飯で！ジューシーに炙った脂の甘みを柚子風味の大根おろしでさ",
-    "menu_category": "Side Dishes",
-    "date": "",
-    "author": "",
-    "tags": [
-      "afuri"
-    ],
-    "categories": []
-  },
-  {
-    "url": "https://afuri.com/menu/",
-    "title": "AFURIが作る、特別なおかかごはん。旨味と香りが凝縮した本枯節を、ふんわり絹糸削りにしてたっぷり盛",
-    "content": "AFURIが作る、特別なおかかごはん。旨味と香りが凝縮した本枯節を、ふんわり絹糸削りにしてたっぷり盛りました。そのまま食べても、スープをかけても。",
-    "section": "Menu",
-    "menu_item": "AFURIが作る、特別なおかかごはん。旨味と香りが凝縮した本枯節を、ふんわり絹糸削りにしてたっぷり盛",
-    "menu_category": "Side Dishes",
-    "date": "",
-    "author": "",
-    "tags": [
-      "afuri"
-    ],
-    "categories": []
-  },
-  {
-    "url": "https://afuri.com/menu/",
-    "title": "みんな大好きタレごはん♡どこか懐かしい味わいの特製の甘辛ダレとごはんの組み合わせが、一度食べたらやみ",
-    "content": "AFURI みんな大好きタレごはん♡どこか懐かしい味わいの特製の甘辛ダレとごはんの組み合わせが、一度食べたらやみつき。スタッフ人気No.1。",
-    "section": "Menu",
-    "menu_item": "みんな大好きタレごはん♡どこか懐かしい味わいの特製の甘辛ダレとごはんの組み合わせが、一度食べたらやみ",
-    "menu_category": "Side Dishes",
-    "date": "",
-    "author": "",
-    "tags": [
-      "afuri"
-    ],
-    "categories": []
-  },
-  {
-    "url": "https://afuri.com/menu/",
-    "title": "炭火で一枚一枚、ジューシーに炙るチャーシュー。炭火ならではの香りが食欲をそそります。",
-    "content": "AFURI 炭火で一枚一枚、ジューシーに炙るチャーシュー。炭火ならではの香りが食欲をそそります。",
-    "section": "Menu",
-    "menu_item": "炭火で一枚一枚、ジューシーに炙るチャーシュー。炭火ならではの香りが食欲をそそります。",
     "menu_category": "Side Dishes",
     "date": "",
     "author": "",
@@ -720,92 +482,6 @@
     "section": "Menu",
     "menu_item": "Chashu, cooked over charcoal by order slice by sli",
     "menu_category": "Side Dishes",
-    "date": "",
-    "author": "",
-    "tags": [
-      "afuri"
-    ],
-    "categories": []
-  },
-  {
-    "url": "https://afuri.com/menu/",
-    "title": "甘辛の醤油ダレに生姜やニンニクの香味をプラスして、じっくりと煮込んだ角煮チャーシュー。",
-    "content": "AFURI 甘辛の醤油ダレに生姜やニンニクの香味をプラスして、じっくりと煮込んだ角煮チャーシュー。",
-    "section": "Menu",
-    "menu_item": "甘辛の醤油ダレに生姜やニンニクの香味をプラスして、じっくりと煮込んだ角煮チャーシュー。",
-    "menu_category": "Side Dishes",
-    "date": "",
-    "author": "",
-    "tags": [
-      "afuri"
-    ],
-    "categories": []
-  },
-  {
-    "url": "https://afuri.com/menu/",
-    "title": "無添加の卵を半熟に煮込み、和風の魚介出汁で味つけ。とろみと旨味がらーめんと相性抜群。",
-    "content": "AFURI 無添加の卵を半熟に煮込み、和風の魚介出汁で味つけ。とろみと旨味がらーめんと相性抜群。",
-    "section": "Menu",
-    "menu_item": "無添加の卵を半熟に煮込み、和風の魚介出汁で味つけ。とろみと旨味がらーめんと相性抜群。",
-    "menu_category": "Ramen",
-    "date": "",
-    "author": "",
-    "tags": [
-      "afuri"
-    ],
-    "categories": []
-  },
-  {
-    "url": "https://afuri.com/menu/",
-    "title": "AFURIのらーめんにぴったり。フルーティなプレミアムビール。",
-    "content": "AFURIのらーめんにぴったり。フルーティなプレミアムビール。",
-    "section": "Menu",
-    "menu_item": "AFURIのらーめんにぴったり。フルーティなプレミアムビール。",
-    "menu_category": "Drinks",
-    "date": "",
-    "author": "",
-    "tags": [
-      "afuri"
-    ],
-    "categories": []
-  },
-  {
-    "url": "https://afuri.com/menu/",
-    "title": "ミディアムボディの芳醇でうまみのあるお酒。心地よい酸と豊かな余韻でらーめんとの相性も良好。",
-    "content": "AFURI ミディアムボディの芳醇でうまみのあるお酒。心地よい酸と豊かな余韻でらーめんとの相性も良好。",
-    "section": "Menu",
-    "menu_item": "ミディアムボディの芳醇でうまみのあるお酒。心地よい酸と豊かな余韻でらーめんとの相性も良好。",
-    "menu_category": "Drinks",
-    "date": "",
-    "author": "",
-    "tags": [
-      "afuri"
-    ],
-    "categories": []
-  },
-  {
-    "url": "https://afuri.com/menu/",
-    "title": "Pork Aburi Chashu",
-    "content": "鶏の上質な脂に香味野菜の香りをじっくりと閉じ込めた、スープにコクとまろやかさを添える油です。鶏油の量を通常量の「淡麗（たんれい）」か少し多めの「まろ味（まろあじ）」からお選びいただけます。\nChi-yu, as literally meaning of “Chicken Oil”, our Chi-yu is finely extracted from the highest quality’s Japanese whole chicken.Please choose the amount of Chi-yu you like for your broth, blending with various seasonable vegetables and roots.\n\n\n\n\n\n\n淡麗Tanrei\n\nAFURIの、スタンダードな鶏油量。\n\t\t\t\t\t\t\tきりっと澄んだスープの味をベストバランスで味わいたいときに。\nAFURI’s classics, the ultimate ratio of Chi-yu we delicately balanced into soup.\n\n\n\n\nまろ味Maroaji\n\n淡麗のスープより、少し多めの鶏油量。らーめんのコクと香りを、より感じたいときに。\nThicker mouthfeel soup with extra Chi-yu added to Tanrei.\n\n\n\n\n\n\n\n\n\n\nGokuboso Men\nwheat noodle -normal type\n細挽きの全粒粉とライ麦を配合した、ヘルシーな極細麺。しっかりとした歯ごたえに、ほのかな麦の香が上品に香ります。\nGokuboso Men (thin noodle), blend of premium Hokkaido whole grain wheat “Haru yo Koi” and rye.\n\n\n\n\n\nTemomi Men\nwheat noodle -wavy type\n手揉みタイプの平打ち麺。真空ミキサーで余分な空気を入れずに製麺するため、もちもちした食感がお楽しみいただけます。\nWavy type noodle made with unique vacuum dough blender in order to remove unneeded air inside the noodle and make it more bouncy.\n\n\n\n\n\nKonnyaku Men\n\n食物繊維が豊富で、低カロリーな国産こんにゃく麺。隠し味の白出汁が効いています。らーめんには「細麺タイプ」、つけ麺には「太麺タイプ」がオススメ。\nMade from Japanese yam root and housemade white-dashi, konjac noodle will be your health-friendly alternative also rich in fiber!\n\n\n\n\n\n\n\n\nAburi Koro Pork Chashu Gohan\nAFURIで人気の「炙りチャーシュー」をご飯で！ジューシーに炙った脂の甘みを柚子風味の大根おろしでさっぱりとお召し上がりいただける一品。\nrice, grilled chashu, yuzu, daikon oroshi, green onion\n\n\n\n\n\nPork Niku Gohan\n新鮮な豚バラ肉をフルーティな特製ダレに漬け込み、じっくり味を染み込ませました。風味豊かな海苔と白髪ネギをアクセントに。\nrice, Japanese braised pork belly, white negi\n\n\n\n\n\nHongarebushi Okaka Gohan\nAFURIが作る、特別なおかかごはん。旨味と香りが凝縮した本枯節を、ふんわり絹糸削りにしてたっぷり盛りました。そのまま食べても、スープをかけても。\nrice, hongarebushi, green onion, honwasabi, soy sauce\n\n\n\n\n\nTare Gohan\nみんな大好きタレごはん♡どこか懐かしい味わいの特製の甘辛ダレとごはんの組み合わせが、一度食べたらやみつき。スタッフ人気No.1。\nrice, homemade Tare, sesame, green onion\n\n\n\n\n\nGohan\nAFURIが選ぶ産地指定の美味しいお米。ふっくら炊き上げて、お漬物を添えて。\nsimply rice!\n\n* All our rice is custom blend of white rice, sticky rice and rolled oats.\n\n\n\n\n\n\nPork Aburi Chashu 1 slice\n炭火で一枚一枚、ジューシーに炙るチャーシュー。炭火ならではの香りが食欲をそそります。\nChashu, cooked over charcoal by order slice by slice.\n\n\n\n\n\nKaku-ni Chashu\n甘辛の醤油ダレに生姜やニンニクの香味をプラスして、じっくりと煮込んだ角煮チャーシュー。\nJapanese braised pork belly slowly simmered with condiments such as ginger, garlic and leeks to bring out some hit.\n\n\n\n\n\nNitamago\n無添加の卵を半熟に煮込み、和風の魚介出汁で味つけ。とろみと旨味がらーめんと相性抜群。\nSoft boiled additive-free eggs with rich, orange, gooey yolks, Marinated overnight in special dashi.\n\n\n\n\n\nMenma\nオリジナルの出汁醤油でじっくり煮込んだ、シャキシャキの食感が嬉しいメンマ。\nBamboo shoots simmered in AFURI’s superb shoyu dashi.\n\n\n\n\n\nNori 7 pieces\n淡路島産の高級海苔。栄養分豊かな海で育った希少な海苔を、贅沢に使用。\nFive stared seaweed grown in fertile ocean Awajishima, southwest bay of Japan.\n\n\n\n\n\nMizuna\n産地直送の新鮮水菜。抗酸化作用に解毒作用と、体に嬉しい効果が手軽にたっぷり。\nJapanese Mizuna, amazing element of antioxidant and detox.\n\n\n\n\n\n \n\n\nDraft Beer\nAFURIのらーめんにぴったり。フルーティなプレミアムビール。\nGolden ale beer on tap with rich foam. Can’t go wrong with AFURI’s slurp!\n\n\n \n\n\nWhisky Soda AFURI's style\n柚子の香りが爽やかな、AFURIオリジナルのハイボールです。\nAFURI's house-made Yuzu highball. (Whisky soda with fresh Yuzu juice.)\n\n\n \n\n\nJapanese SAKE\nミディアムボディの芳醇でうまみのあるお酒。心地よい酸と豊かな余韻でらーめんとの相性も良好。\nAFURI JUNMAI KIMOTO SAKE (dried pear, spicy custard, jicama)\n\n\n\nアレルゲン情報Allergen information",
-    "section": "Menu",
-    "menu_item": "Pork Aburi Chashu",
-    "menu_category": "Chi-yu",
-    "ingredients": "Japanese Mizuna, amazing element of antioxidant and detox.",
-    "date": "",
-    "author": "",
-    "tags": [
-      "afuri"
-    ],
-    "categories": []
-  },
-  {
-    "url": "https://afuri.com/menu/",
-    "title": "Nori",
-    "content": "鶏の上質な脂に香味野菜の香りをじっくりと閉じ込めた、スープにコクとまろやかさを添える油です。鶏油の量を通常量の「淡麗（たんれい）」か少し多めの「まろ味（まろあじ）」からお選びいただけます。\nChi-yu, as literally meaning of “Chicken Oil”, our Chi-yu is finely extracted from the highest quality’s Japanese whole chicken.Please choose the amount of Chi-yu you like for your broth, blending with various seasonable vegetables and roots.\n\n\n\n\n\n\n淡麗Tanrei\n\nAFURIの、スタンダードな鶏油量。\n\t\t\t\t\t\t\tきりっと澄んだスープの味をベストバランスで味わいたいときに。\nAFURI’s classics, the ultimate ratio of Chi-yu we delicately balanced into soup.\n\n\n\n\nまろ味Maroaji\n\n淡麗のスープより、少し多めの鶏油量。らーめんのコクと香りを、より感じたいときに。\nThicker mouthfeel soup with extra Chi-yu added to Tanrei.\n\n\n\n\n\n\n\n\n\n\nGokuboso Men\nwheat noodle -normal type\n細挽きの全粒粉とライ麦を配合した、ヘルシーな極細麺。しっかりとした歯ごたえに、ほのかな麦の香が上品に香ります。\nGokuboso Men (thin noodle), blend of premium Hokkaido whole grain wheat “Haru yo Koi” and rye.\n\n\n\n\n\nTemomi Men\nwheat noodle -wavy type\n手揉みタイプの平打ち麺。真空ミキサーで余分な空気を入れずに製麺するため、もちもちした食感がお楽しみいただけます。\nWavy type noodle made with unique vacuum dough blender in order to remove unneeded air inside the noodle and make it more bouncy.\n\n\n\n\n\nKonnyaku Men\n\n食物繊維が豊富で、低カロリーな国産こんにゃく麺。隠し味の白出汁が効いています。らーめんには「細麺タイプ」、つけ麺には「太麺タイプ」がオススメ。\nMade from Japanese yam root and housemade white-dashi, konjac noodle will be your health-friendly alternative also rich in fiber!\n\n\n\n\n\n\n\n\nAburi Koro Pork Chashu Gohan\nAFURIで人気の「炙りチャーシュー」をご飯で！ジューシーに炙った脂の甘みを柚子風味の大根おろしでさっぱりとお召し上がりいただける一品。\nrice, grilled chashu, yuzu, daikon oroshi, green onion\n\n\n\n\n\nPork Niku Gohan\n新鮮な豚バラ肉をフルーティな特製ダレに漬け込み、じっくり味を染み込ませました。風味豊かな海苔と白髪ネギをアクセントに。\nrice, Japanese braised pork belly, white negi\n\n\n\n\n\nHongarebushi Okaka Gohan\nAFURIが作る、特別なおかかごはん。旨味と香りが凝縮した本枯節を、ふんわり絹糸削りにしてたっぷり盛りました。そのまま食べても、スープをかけても。\nrice, hongarebushi, green onion, honwasabi, soy sauce\n\n\n\n\n\nTare Gohan\nみんな大好きタレごはん♡どこか懐かしい味わいの特製の甘辛ダレとごはんの組み合わせが、一度食べたらやみつき。スタッフ人気No.1。\nrice, homemade Tare, sesame, green onion\n\n\n\n\n\nGohan\nAFURIが選ぶ産地指定の美味しいお米。ふっくら炊き上げて、お漬物を添えて。\nsimply rice!\n\n* All our rice is custom blend of white rice, sticky rice and rolled oats.\n\n\n\n\n\n\nPork Aburi Chashu 1 slice\n炭火で一枚一枚、ジューシーに炙るチャーシュー。炭火ならではの香りが食欲をそそります。\nChashu, cooked over charcoal by order slice by slice.\n\n\n\n\n\nKaku-ni Chashu\n甘辛の醤油ダレに生姜やニンニクの香味をプラスして、じっくりと煮込んだ角煮チャーシュー。\nJapanese braised pork belly slowly simmered with condiments such as ginger, garlic and leeks to bring out some hit.\n\n\n\n\n\nNitamago\n無添加の卵を半熟に煮込み、和風の魚介出汁で味つけ。とろみと旨味がらーめんと相性抜群。\nSoft boiled additive-free eggs with rich, orange, gooey yolks, Marinated overnight in special dashi.\n\n\n\n\n\nMenma\nオリジナルの出汁醤油でじっくり煮込んだ、シャキシャキの食感が嬉しいメンマ。\nBamboo shoots simmered in AFURI’s superb shoyu dashi.\n\n\n\n\n\nNori 7 pieces\n淡路島産の高級海苔。栄養分豊かな海で育った希少な海苔を、贅沢に使用。\nFive stared seaweed grown in fertile ocean Awajishima, southwest bay of Japan.\n\n\n\n\n\nMizuna\n産地直送の新鮮水菜。抗酸化作用に解毒作用と、体に嬉しい効果が手軽にたっぷり。\nJapanese Mizuna, amazing element of antioxidant and detox.\n\n\n\n\n\n \n\n\nDraft Beer\nAFURIのらーめんにぴったり。フルーティなプレミアムビール。\nGolden ale beer on tap with rich foam. Can’t go wrong with AFURI’s slurp!\n\n\n \n\n\nWhisky Soda AFURI's style\n柚子の香りが爽やかな、AFURIオリジナルのハイボールです。\nAFURI's house-made Yuzu highball. (Whisky soda with fresh Yuzu juice.)\n\n\n \n\n\nJapanese SAKE\nミディアムボディの芳醇でうまみのあるお酒。心地よい酸と豊かな余韻でらーめんとの相性も良好。\nAFURI JUNMAI KIMOTO SAKE (dried pear, spicy custard, jicama)\n\n\n\nアレルゲン情報Allergen information",
-    "section": "Menu",
-    "menu_item": "Nori",
-    "menu_category": "Chi-yu",
-    "ingredients": "Japanese Mizuna, amazing element of antioxidant and detox.",
     "date": "",
     "author": "",
     "tags": [

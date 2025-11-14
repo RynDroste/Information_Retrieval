@@ -59,6 +59,10 @@ header {
     color: white;
 }
 
+.category-tsukemen {
+    background: linear-gradient(135deg, #ff8c42 0%, #ff6b35 100%);
+    color: white;
+}
 
 .category-noodles {
     background: linear-gradient(135deg, #ffe66d 0%, #ffd93d 100%);
