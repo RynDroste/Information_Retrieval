@@ -3,14 +3,46 @@ class ArticleSearch {
         this.filteredArticles = [];
         this.activeFilters = { section: null, category: null, tag: null, priceRange: null };
         this.solrUrl = 'http://localhost:8888/solr/RamenProject/select';
+        this.semanticApiUrl = 'http://localhost:8889';
+        this.semanticSearchAvailable = false;
         this.init();
     }
 
     async init() {
         this.setupEventListeners();
+        await this.checkSemanticSearchAvailability();
         await this.displayStats();
         await this.loadAllTags();
         this.updateActiveFiltersDisplay();
+    }
+
+    async checkSemanticSearchAvailability() {
+        try {
+            const response = await fetch(`${this.semanticApiUrl}/semantic/status`);
+            if (response.ok) {
+                const data = await response.json();
+                this.semanticSearchAvailable = data.available || false;
+                if (this.semanticSearchAvailable) {
+                    console.log('%c✓ Semantic search available', 'color: green; font-weight: bold;', `(${data.embeddings_count} embeddings)`);
+                    console.log('  → Hybrid search enabled: Keyword (60%) + Semantic (40%)');
+                } else {
+                    console.log('%c⚠ Semantic search API responded but is not available', 'color: orange;');
+                    console.log('  → Using keyword search only');
+                }
+            } else {
+                console.log('%c⚠ Semantic search API not responding', 'color: orange;');
+                console.log('  → Using keyword search only');
+                this.semanticSearchAvailable = false;
+            }
+        } catch (error) {
+            console.log('%cℹ Semantic search API not available', 'color: blue;');
+            console.log('  → Using keyword search only');
+            console.log('  → To enable semantic search:');
+            console.log('    1. Install: pip3 install sentence-transformers numpy torch');
+            console.log('    2. Run: python3 run_pipeline.py --use-labse --configure-solr');
+            console.log('    3. Start: bash start_frontend.sh true');
+            this.semanticSearchAvailable = false;
+        }
     }
 
     setupEventListeners() {
@@ -36,6 +68,73 @@ class ArticleSearch {
     getFieldArray(field, defaultValue = []) {
         if (!field) return defaultValue;
         return Array.isArray(field) ? field.map(String) : [String(field)];
+    }
+
+    /**
+     * Calculate Keyword Score from Solr score (normalized to 0-1 range)
+     * This is independent of semantic search
+     * 
+     * @param {number} solrScore - Original Solr score
+     * @returns {number} Normalized keyword score (0-1)
+     */
+    calculateKeywordScore(solrScore) {
+        // Handle different types and formats
+        let score = solrScore;
+        
+        // Convert string to number if needed
+        if (typeof score === 'string') {
+            score = parseFloat(score);
+            if (isNaN(score)) {
+                console.warn(`[calculateKeywordScore] Invalid score string: ${solrScore}`);
+                return 0.0;
+            }
+        }
+        
+        // Handle null, undefined, or zero
+        if (score === null || score === undefined || score === 0) {
+            return 0.0;
+        }
+        
+        // Normalize Solr score to 0-1 range
+        // If score is very large (>100), divide by 100, otherwise divide by 10
+        if (score > 100) {
+            return Math.min(1.0, score / 100.0);
+        } else {
+            return Math.min(1.0, score / 10.0);
+        }
+    }
+
+    /**
+     * Add keyword_score to all documents based on Solr score
+     * This ensures keyword_score is always available, regardless of semantic search
+     * 
+     * @param {Array} docs - Documents from Solr
+     * @returns {Array} Documents with keyword_score added
+     */
+    addKeywordScores(docs) {
+        return docs.map((doc, index) => {
+            // Get Solr score - try different possible field names
+            let solrScore = doc.score;
+            if (solrScore === undefined || solrScore === null) {
+                solrScore = doc._score || doc['score'] || 0;
+            }
+            
+            const keywordScore = this.calculateKeywordScore(solrScore);
+            
+            // Debug: log first few documents
+            if (index < 3) {
+                console.log(`[Debug Keyword Score] Document ${index + 1}: ${doc.title || doc.menu_item || 'N/A'}`);
+                console.log(`  Raw doc.score: ${doc.score} (type: ${typeof doc.score})`);
+                console.log(`  Using solrScore: ${solrScore} (type: ${typeof solrScore})`);
+                console.log(`  Calculated keyword_score: ${keywordScore}`);
+                console.log(`  Final doc.keyword_score: ${keywordScore}`);
+            }
+            
+            return {
+                ...doc,
+                keyword_score: keywordScore
+            };
+        });
     }
 
     buildQuery(searchText = '') {
@@ -101,6 +200,7 @@ class ArticleSearch {
 
     parseDocs(docs) {
         return docs.map(doc => ({
+            id: doc.id || '',  // Include ID for detail page navigation
             url: this.getFieldValue(doc.url),
             title: this.getFieldValue(doc.title),
             content: this.getFieldValue(doc.content),
@@ -155,11 +255,11 @@ class ArticleSearch {
                 keywords: [
                     { patterns: ['store', 'stores', 'location', 'locations', 'shop', 'shops'], target: 'section:"Store Information"' },
                     { patterns: ['brand', 'brands', 'company'], target: 'section:"Brand Information"' },
-                    { patterns: ['menu', 'menus', 'item', 'items', 'product', 'products'], target: 'section:"Menu"' }
+                    { patterns: ['menu', 'menus', 'item', 'items', 'product', 'products', 'food', 'foods', 'dish', 'dishes'], target: 'section:"Menu"' }
                 ],
                 boost: {
                     solo: 6.0,
-                    combined: 5.0
+                    combined: 6.5  // Increased for combined queries to prioritize Menu over Brand
                 }
             }
         };
@@ -222,19 +322,41 @@ class ArticleSearch {
             });
         }
         
-        // Priority 2: Brand keywords
-        if (detected.brand) {
-            const boostConfig = hasMultipleTypes ? keywordPatterns.brand.boost.combined : keywordPatterns.brand.boost.solo;
-            Object.entries(boostConfig).forEach(([target, boost]) => {
-                bqParts.push(`${target}^${boost}`);
-            });
+        // Special handling for "yuzu ramen" - boost Ramen category and exact phrase matches
+        if (queryLower.includes('yuzu') && queryLower.includes('ramen')) {
+            bqParts.push('menu_category:"Ramen"^8.0');
         }
         
-        // Priority 3: Type keywords (lowest priority)
+        // Priority 2: Type keywords (Menu section should have higher priority than Brand when both are present)
+        // Check if Menu type is detected
+        const menuTypeDetected = detected.type.some(t => t.target === 'section:"Menu"');
         if (detected.type.length > 0) {
             const boost = hasMultipleTypes ? keywordPatterns.type.boost.combined : keywordPatterns.type.boost.solo;
             detected.type.forEach(type => {
-                bqParts.push(`${type.target}^${boost}`);
+                // If Menu type is detected along with brand, give Menu much higher boost
+                if (type.target === 'section:"Menu"' && detected.brand && hasMultipleTypes) {
+                    bqParts.push(`${type.target}^9.0`);  // Much higher boost for Menu when combined with brand
+                } else {
+                    bqParts.push(`${type.target}^${boost}`);
+                }
+            });
+        }
+        
+        // Priority 3: Brand keywords
+        if (detected.brand) {
+            const boostConfig = hasMultipleTypes ? keywordPatterns.brand.boost.combined : keywordPatterns.brand.boost.solo;
+            Object.entries(boostConfig).forEach(([target, boost]) => {
+                // Reduce brand boost when Menu type is also detected
+                if (menuTypeDetected && hasMultipleTypes && target === 'section:"Brand Information"') {
+                    bqParts.push(`${target}^2.0`);  // Much lower boost for Brand when Menu is present
+                } else {
+                    // When searching for "brand" alone, give very high boost to Brand Information
+                    if (!hasMultipleTypes && target === 'section:"Brand Information"') {
+                        bqParts.push(`${target}^8.0`);  // Very high boost for "brand" query
+                    } else {
+                        bqParts.push(`${target}^${boost}`);
+                    }
+                }
             });
         }
         
@@ -243,15 +365,19 @@ class ArticleSearch {
 
     async searchSolr(query) {
         const queryLower = query.toLowerCase().trim();
-        const bq = this.buildBoostQuery(query);
+        const originalQuery = document.getElementById('searchInput').value.trim();
+        const bq = this.buildBoostQuery(originalQuery);
         
         const params = new URLSearchParams({
             q: query,
             defType: 'edismax',
             qf: 'title^2.0 content^1.5 menu_item^2.5 ingredients^1.0 menu_category^2.0 store_name^3.0',
-            pf: 'title^3.0 menu_item^3.0 store_name^4.0',
+            pf: 'title^5.0 menu_item^5.0 store_name^6.0',
+            ps: '2',
+            mm: '2<75% 3<50%',
             rows: 1000,
-            wt: 'json'
+            wt: 'json',
+            fl: '*,score'  // Ensure score field is returned
         });
         
         if (bq) params.append('bq', bq);
@@ -266,8 +392,118 @@ class ArticleSearch {
                 if (altResult) return;
             }
 
-            if (data.response?.docs) {
-                this.filteredArticles = this.parseDocs(data.response.docs);
+            let docs = data.response?.docs || [];
+            
+            // Calculate keyword_score for all documents (independent of semantic search)
+            docs = this.addKeywordScores(docs);
+            
+            // Log Solr keyword search results
+            if (docs.length > 0) {
+                console.group(`%c🔍 Solr Keyword Search Results for: "${originalQuery}"`, 'color: blue; font-weight: bold;');
+                console.table(docs.slice(0, 10).map((doc, index) => ({
+                    Rank: index + 1,
+                    Title: this.getFieldValue(doc.title) || this.getFieldValue(doc.menu_item) || 'N/A',
+                    Section: this.getFieldValue(doc.section) || 'N/A',
+                    'Solr Score': doc.score ? doc.score.toFixed(3) : 'N/A',
+                    'Keyword Score': (doc.keyword_score !== undefined && doc.keyword_score !== null) ? doc.keyword_score.toFixed(3) : 'N/A'
+                })));
+                console.groupEnd();
+            }
+            
+            // If semantic search is available and we have results, rerank using semantic search
+            if (this.semanticSearchAvailable && docs.length > 0 && originalQuery.trim()) {
+                try {
+                    console.log(`%c🔍 Using semantic search for: "${originalQuery}"`, 'color: purple; font-weight: bold;');
+                    docs = await this.rerankWithSemanticSearch(originalQuery, docs);
+                    
+                    // Apply section-based boost after semantic reranking
+                    // If query contains "food" or menu-related keywords, boost Menu section
+                    const queryLower = originalQuery.toLowerCase().trim();
+                    const hasFoodKeyword = /\b(food|foods|menu|menus|item|items|product|products|dish|dishes)\b/.test(queryLower);
+                    const hasBrandKeyword = /\b(afuri)\b/.test(queryLower);
+                    const isBrandOnlyQuery = /\b(brand|brands)\b/.test(queryLower) && !hasFoodKeyword && !hasBrandKeyword;
+                    
+                    // Boost Brand Information when searching for "brand" alone
+                    if (isBrandOnlyQuery) {
+                        docs = docs.map(doc => {
+                            const section = this.getFieldValue(doc.section);
+                            const originalScore = doc.score || 0;
+                            if (section === 'Brand Information') {
+                                return { ...doc, score: originalScore * 2.0 };  // Boost Brand by 100%
+                            } else if (section === 'Menu') {
+                                return { ...doc, score: originalScore * 0.5 };  // Reduce Menu by 50%
+                            }
+                            return doc;
+                        });
+                        // Re-sort by adjusted score
+                        docs.sort((a, b) => (b.score || 0) - (a.score || 0));
+                        console.log(`%c⚡ Post-processing boost applied for "brand" query (Brand ×2.0, Menu ×0.5)`, 'color: orange;');
+                    } else if (hasFoodKeyword && hasBrandKeyword) {
+                        // Boost Menu section and demote Brand Information
+                        const beforeBoost = docs.slice(0, 5).map(d => ({
+                            title: this.getFieldValue(d.title),
+                            section: this.getFieldValue(d.section),
+                            score: d.score
+                        }));
+                        
+                        docs = docs.map(doc => {
+                            const section = this.getFieldValue(doc.section);
+                            const originalScore = doc.score || 0;
+                            if (section === 'Menu') {
+                                return { ...doc, score: originalScore * 1.5 };  // Boost Menu by 50%
+                            } else if (section === 'Brand Information') {
+                                return { ...doc, score: originalScore * 0.3 };  // Reduce Brand by 70%
+                            }
+                            return doc;
+                        });
+                        // Re-sort by adjusted score
+                        docs.sort((a, b) => (b.score || 0) - (a.score || 0));
+                        
+                        // Log post-processing boost
+                        console.log(`%c⚡ Post-processing boost applied (Menu ×1.5, Brand ×0.3)`, 'color: orange;');
+                        const afterBoost = docs.slice(0, 5).map(d => ({
+                            title: this.getFieldValue(d.title),
+                            section: this.getFieldValue(d.section),
+                            score: d.score
+                        }));
+                        console.log('Before Boost:', beforeBoost);
+                        console.log('After Boost:', afterBoost);
+                    }
+                    
+                    // Log final ranking
+                    console.group(`%c✅ Final Ranking (Top 10)`, 'color: green; font-weight: bold;');
+                    console.table(docs.slice(0, 10).map((doc, index) => ({
+                        Rank: index + 1,
+                        Title: this.getFieldValue(doc.title) || this.getFieldValue(doc.menu_item) || 'N/A',
+                        Section: this.getFieldValue(doc.section) || 'N/A',
+                        'Final Score': (doc.score !== undefined && doc.score !== null) ? doc.score.toFixed(3) : 'N/A',
+                        'Keyword Score': (doc.keyword_score !== undefined && doc.keyword_score !== null) ? doc.keyword_score.toFixed(3) : 'N/A',
+                        'Semantic Score': (doc.semantic_score !== undefined && doc.semantic_score !== null) ? doc.semantic_score.toFixed(3) : 'N/A'
+                    })));
+                    console.groupEnd();
+                    
+                    console.log(`%c✓ Semantic reranking completed`, 'color: green;', `(${docs.length} results)`);
+                } catch (semanticError) {
+                    console.warn('%c⚠ Semantic search reranking failed, using Solr results', 'color: orange;', semanticError);
+                }
+            } else if (docs.length > 0 && originalQuery.trim()) {
+                console.log(`%c🔍 Using keyword search only for: "${originalQuery}"`, 'color: blue;');
+                
+                // Log final ranking with keyword scores (even without semantic search)
+                console.group(`%c✅ Final Ranking (Top 10)`, 'color: green; font-weight: bold;');
+                console.table(docs.slice(0, 10).map((doc, index) => ({
+                    Rank: index + 1,
+                    Title: this.getFieldValue(doc.title) || this.getFieldValue(doc.menu_item) || 'N/A',
+                    Section: this.getFieldValue(doc.section) || 'N/A',
+                    'Final Score': (doc.score !== undefined && doc.score !== null) ? doc.score.toFixed(3) : 'N/A',
+                    'Keyword Score': (doc.keyword_score !== undefined && doc.keyword_score !== null) ? doc.keyword_score.toFixed(3) : 'N/A',
+                    'Semantic Score': 'N/A (not used)'
+                })));
+                console.groupEnd();
+            }
+
+            if (docs.length > 0) {
+                this.filteredArticles = this.parseDocs(docs);
             } else {
                 this.filteredArticles = [];
             }
@@ -285,6 +521,98 @@ class ArticleSearch {
             }
             throw error;
         }
+    }
+
+    async rerankWithSemanticSearch(query, candidates) {
+        // Prepare candidates with id and score for semantic API
+        const candidatesForAPI = candidates.map((doc, index) => ({
+            id: doc.id || `doc_${index}`,
+            title: this.getFieldValue(doc.title),
+            menu_item: this.getFieldValue(doc.menu_item),
+            content: this.getFieldValue(doc.content),
+            menu_category: this.getFieldValue(doc.menu_category),
+            score: doc.score || 0,
+            ...doc
+        }));
+
+        try {
+            const response = await fetch(`${this.semanticApiUrl}/semantic/rerank`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    query: query,
+                    candidates: candidatesForAPI,
+                    top_k: 100,
+                    keyword_weight: 0.5,  // Reduced from 0.6 to give more weight to semantic understanding
+                    semantic_weight: 0.5  // Increased from 0.4 to better understand "food" context
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error(`Semantic API request failed: ${response.status}`);
+            }
+
+            const data = await response.json();
+            if (data.success && data.results && data.results.length > 0) {
+                // Log detailed scores for debugging
+                console.group(`%c📊 Semantic Search Scores for: "${query}"`, 'color: purple; font-weight: bold;');
+                console.table(data.results.slice(0, 10).map((result, index) => ({
+                    Rank: index + 1,
+                    Title: result.title || result.menu_item || 'N/A',
+                    Section: result.section || 'N/A',
+                    'Keyword Score': (result.keyword_score !== undefined && result.keyword_score !== null) ? result.keyword_score.toFixed(3) : 'N/A',
+                    'Semantic Score': (result.semantic_score !== undefined && result.semantic_score !== null) ? result.semantic_score.toFixed(3) : 'N/A',
+                    'Combined Score': (result.combined_score !== undefined && result.combined_score !== null) ? result.combined_score.toFixed(3) : 'N/A'
+                })));
+                console.groupEnd();
+                
+                // Map reranked results back to original doc format
+                const rerankedDocs = data.results.map(result => {
+                    // Find original doc by id
+                    const originalDoc = candidates.find(doc => doc.id === result.id);
+                    if (originalDoc) {
+                        // Calculate keyword_score from original Solr score (always from Solr, not from semantic API)
+                        // This ensures keyword_score is independent of semantic search
+                        const keywordScore = this.calculateKeywordScore(originalDoc.score || 0);
+                        
+                        // Get semantic_score (may be 0 for docs without embeddings)
+                        const semanticScore = (result.semantic_score !== undefined && result.semantic_score !== null) 
+                            ? result.semantic_score 
+                            : 0.0;
+                        
+                        // Update score with combined score and preserve detailed scores
+                        const rerankedDoc = {
+                            ...originalDoc,
+                            score: result.combined_score || result.score || originalDoc.score,
+                            keyword_score: keywordScore,
+                            semantic_score: semanticScore,
+                            combined_score: result.combined_score || result.score || originalDoc.score
+                        };
+                        
+                        // Debug: log first few documents to verify scores
+                        const currentIndex = data.results.indexOf(result);
+                        if (currentIndex < 3) {
+                            console.log(`📝 Reranked doc [${currentIndex + 1}]: ${rerankedDoc.title || rerankedDoc.menu_item || 'N/A'}`);
+                            console.log(`   keyword_score: ${rerankedDoc.keyword_score} (from API: ${result.keyword_score})`);
+                            console.log(`   semantic_score: ${rerankedDoc.semantic_score} (from API: ${result.semantic_score})`);
+                            console.log(`   combined_score: ${rerankedDoc.combined_score}`);
+                        }
+                        
+                        return rerankedDoc;
+                    }
+                    return null;
+                }).filter(doc => doc !== null);
+
+                return rerankedDocs.length > 0 ? rerankedDocs : candidates;
+            }
+        } catch (error) {
+            console.error('Semantic reranking error:', error);
+            throw error;
+        }
+
+        return candidates;
     }
 
     async tryAlternativeQueries(query) {
@@ -398,9 +726,12 @@ class ArticleSearch {
 
             const priceDisplay = article.price ? `<span class="product-price">${this.escapeHtml(article.price)}</span>` : '';
             
+            // Create detail page link using article ID
+            const detailLink = article.id ? `detail.html?id=${encodeURIComponent(article.id)}` : '#';
+            
             return `<div class="article-card">
                 <div class="article-header">
-                    <h2><a href="${article.url}" target="_blank">${this.highlightText(article.title, queryWords)}</a></h2>
+                    <h2><a href="${detailLink}">${this.highlightText(article.title, queryWords)}</a></h2>
                     ${priceDisplay}
                 </div>
                 ${categoryLine}${tagsLine}${ingredientsLine}

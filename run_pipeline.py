@@ -8,6 +8,8 @@ import subprocess
 import time
 import json
 import shutil
+import signal
+import platform
 from pathlib import Path
 
 try:
@@ -88,7 +90,7 @@ class SolrConfigurator:
                          "expand": True},
                         {"class": "solr.FlattenGraphFilterFactory"},
                         {"class": "solr.EdgeNGramFilterFactory", 
-                         "minGramSize": "1", 
+                         "minGramSize": "2", 
                          "maxGramSize": "50"},
                         {"class": "solr.StopFilterFactory", 
                          "words": "stopwords.txt", 
@@ -106,7 +108,7 @@ class SolrConfigurator:
                          "ignoreCase": True, 
                          "expand": True},
                         {"class": "solr.EdgeNGramFilterFactory", 
-                         "minGramSize": "1", 
+                         "minGramSize": "2", 
                          "maxGramSize": "50"},
                         {"class": "solr.StopFilterFactory", 
                          "words": "stopwords.txt", 
@@ -267,13 +269,14 @@ class SolrConfigurator:
 class PipelineRunner:
     def __init__(self, skip_scrape=False, skip_clean=False, skip_index=False, 
                  start_frontend=False, configure_solr=False,
-                 solr_url='http://localhost:8983/solr/RamenProject'):
+                 solr_url='http://localhost:8983/solr/RamenProject', use_labse=False):
         self.skip_scrape = skip_scrape
         self.skip_clean = skip_clean
         self.skip_index = skip_index
         self.start_frontend = start_frontend
         self.configure_solr = configure_solr
         self.solr_url = solr_url
+        self.use_labse = use_labse
         self.errors = []
         
     def print_header(self, step_name):
@@ -379,7 +382,7 @@ class PipelineRunner:
             return False
         
         try:
-            indexer = SolrIndexer(solr_url=self.solr_url)
+            indexer = SolrIndexer(solr_url=self.solr_url, use_labse=self.use_labse)
             
             if indexer.index_articles(clear_existing=True):
                 indexer.print_stats()
@@ -395,42 +398,388 @@ class PipelineRunner:
             self.errors.append(error_msg)
             return False
     
+    def stop_existing_semantic_api(self):
+        """Stop existing semantic search API process if running"""
+        try:
+            if platform.system() == 'Windows':
+                # Windows: use tasklist (simplified - may not work perfectly)
+                return
+            else:
+                # Unix-like: try pgrep first (more reliable)
+                try:
+                    result = subprocess.run(
+                        ['pgrep', '-f', 'semantic_api.py'],
+                        capture_output=True, text=True
+                    )
+                    if result.returncode == 0:
+                        pids = result.stdout.strip().split('\n')
+                        for pid_str in pids:
+                            if pid_str:
+                                try:
+                                    pid = int(pid_str)
+                                    print(f"Found existing semantic API process (PID: {pid}), stopping...")
+                                    self._kill_process(pid)
+                                    print("✓ Stopped existing semantic API")
+                                except (ValueError, ProcessLookupError):
+                                    continue
+                        return
+                except FileNotFoundError:
+                    # pgrep not available, fall back to ps
+                    pass
+                
+                # Fallback: use ps aux
+                result = subprocess.run(
+                    ['ps', 'aux'],
+                    capture_output=True, text=True
+                )
+                
+                if result.returncode == 0:
+                    lines = result.stdout.split('\n')
+                    for line in lines:
+                        if 'semantic_api.py' in line and 'grep' not in line:
+                            parts = line.split()
+                            if len(parts) >= 2:
+                                try:
+                                    pid = int(parts[1])
+                                    print(f"Found existing semantic API process (PID: {pid}), stopping...")
+                                    self._kill_process(pid)
+                                    print("✓ Stopped existing semantic API")
+                                    break
+                                except (ValueError, IndexError, ProcessLookupError):
+                                    continue
+        except Exception:
+            # Silently fail - not critical if we can't stop existing process
+            pass
+    
+    def _kill_process(self, pid):
+        """Helper method to kill a process gracefully"""
+        try:
+            os.kill(pid, signal.SIGTERM)
+            time.sleep(1)
+            # Check if still running
+            try:
+                os.kill(pid, 0)  # Check if process exists
+                print("Process still running, force killing...")
+                os.kill(pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass  # Process already stopped
+        except ProcessLookupError:
+            print("Process already stopped")
+        except PermissionError:
+            print("⚠ No permission to stop process")
+    
+    def kill_existing_processes(self):
+        """Kill existing processes that might conflict"""
+        print("Checking for existing processes...")
+        found_any = False
+        
+        try:
+            # Find and kill processes by name
+            processes_to_kill = [
+                ('solr_proxy.py', '[s]olr_proxy.py'),
+                ('semantic_api.py', '[s]emantic_api.py'),
+                ('http.server', '[h]ttp.server.*8000'),
+            ]
+            
+            for name, pattern in processes_to_kill:
+                try:
+                    result = subprocess.run(
+                        ['ps', 'aux'], 
+                        capture_output=True, 
+                        text=True, 
+                        timeout=5
+                    )
+                    if result.returncode == 0:
+                        lines = result.stdout.split('\n')
+                        pids = []
+                        for line in lines:
+                            if pattern.replace('[', '').replace(']', '') in line and 'grep' not in line:
+                                parts = line.split()
+                                if len(parts) > 1:
+                                    try:
+                                        pids.append(int(parts[1]))
+                                    except (ValueError, IndexError):
+                                        pass
+                        
+                        if pids:
+                            print(f"  → Found existing {name} processes, killing them...")
+                            for pid in pids:
+                                try:
+                                    os.kill(pid, signal.SIGKILL)
+                                    found_any = True
+                                except (ProcessLookupError, PermissionError):
+                                    pass
+                            time.sleep(1)
+                except Exception as e:
+                    pass
+            
+            # Check ports using lsof if available
+            ports_to_check = [8000, 8888, 8889]
+            if shutil.which('lsof'):
+                for port in ports_to_check:
+                    try:
+                        result = subprocess.run(
+                            ['lsof', '-ti', str(port)],
+                            capture_output=True,
+                            text=True,
+                            timeout=5
+                        )
+                        if result.returncode == 0 and result.stdout.strip():
+                            pids = [int(p) for p in result.stdout.strip().split('\n') if p.strip()]
+                            if pids:
+                                print(f"  → Found processes using port {port}, killing them...")
+                                for pid in pids:
+                                    try:
+                                        os.kill(pid, signal.SIGKILL)
+                                        found_any = True
+                                    except (ProcessLookupError, PermissionError):
+                                        pass
+                                time.sleep(1)
+                    except Exception:
+                        pass
+            
+            if found_any:
+                print("✓ Cleanup complete")
+            else:
+                print("✓ No existing processes found")
+            print()
+        except Exception as e:
+            print(f"⚠ Warning during cleanup: {e}")
+            print()
+    
+    def check_and_generate_embeddings(self):
+        """Check if embeddings file exists and generate if needed"""
+        embeddings_file = Path(__file__).parent / 'data' / 'embeddings.json'
+        cleaned_data_file = Path(__file__).parent / 'data' / 'cleaned_data.json'
+        
+        if not embeddings_file.exists():
+            print("⚠ Embeddings file not found: data/embeddings.json")
+            print("Checking if we can generate embeddings...")
+            
+            if cleaned_data_file.exists():
+                print("✓ Found cleaned_data.json, generating embeddings...")
+                print("This may take a few minutes (first time will download LaBSE model ~1.2GB)...")
+                
+                # Run pipeline to generate embeddings
+                subprocess.run([
+                    sys.executable, str(Path(__file__)),
+                    '--use-labse', '--skip-scrape', '--skip-clean'
+                ], cwd=Path(__file__).parent)
+                
+                if embeddings_file.exists():
+                    try:
+                        with open(embeddings_file, 'r') as f:
+                            data = json.load(f)
+                        count = len(data)
+                        print(f"✓ Generated embeddings file with {count} embeddings")
+                        return True
+                    except Exception as e:
+                        print(f"⚠ Failed to verify embeddings file: {e}")
+                        return False
+                else:
+                    print("⚠ Failed to generate embeddings file")
+                    return False
+            else:
+                print("⚠ cleaned_data.json not found")
+                print("⚠ Please run: python3 run_pipeline.py --use-labse --configure-solr")
+                return False
+        else:
+            # Verify embeddings file is valid
+            try:
+                with open(embeddings_file, 'r') as f:
+                    data = json.load(f)
+                count = len(data)
+                if count == 0:
+                    print("⚠ Embeddings file exists but appears to be empty or invalid")
+                    print("⚠ Regenerating embeddings...")
+                    if cleaned_data_file.exists():
+                        subprocess.run([
+                            sys.executable, str(Path(__file__)),
+                            '--use-labse', '--skip-scrape', '--skip-clean'
+                        ], cwd=Path(__file__).parent)
+                        return embeddings_file.exists()
+                    else:
+                        print("⚠ cleaned_data.json not found, cannot regenerate embeddings")
+                        return False
+                else:
+                    print(f"✓ Found embeddings file with {count} embeddings")
+                    return True
+            except Exception as e:
+                print(f"⚠ Error reading embeddings file: {e}")
+                return False
+    
+    def verify_semantic_api(self, max_retries=6, retry_delay=3):
+        """Verify that semantic API is available and loaded embeddings"""
+        import urllib.request
+        
+        for attempt in range(max_retries):
+            try:
+                req = urllib.request.Request('http://localhost:8889/semantic/status')
+                with urllib.request.urlopen(req, timeout=5) as response:
+                    data = json.loads(response.read().decode('utf-8'))
+                    available = data.get('available', False)
+                    count = data.get('embeddings_count', 0)
+                    
+                    if available and count > 0:
+                        print(f"  ✓ Semantic API ready with {count} embeddings")
+                        return True
+            except Exception:
+                pass
+            
+            if attempt < max_retries - 1:
+                print(f"  → Waiting for API to load embeddings... (attempt {attempt + 1}/{max_retries})")
+                time.sleep(retry_delay)
+        
+        return False
+    
     def step4_start_services(self):
         if not self.start_frontend:
             return True
-            
+        
+        # Kill existing processes
+        self.kill_existing_processes()
+        
         self.print_header("Starting frontend services")
         
-        print("Starting Solr proxy server and frontend server...")
-        print("📱 Frontend URL: http://localhost:8000/frontend/")
-        print("Press Ctrl+C to stop services\n")
+        script_dir = Path(__file__).parent
+        processes = []
         
         try:
-            script_path = Path(__file__).parent / 'start_frontend.sh'
-            if script_path.exists():
-                subprocess.run(['bash', str(script_path)])
-            else:
-                print("⚠️  start_frontend.sh not found, starting services manually...")
-                import threading
-                
-                def start_proxy():
-                    from solr_proxy import main as proxy_main
-                    proxy_main()
-                
-                def start_frontend():
-                    subprocess.run(['python3', '-m', 'http.server', '8000'])
-                
-                proxy_thread = threading.Thread(target=start_proxy, daemon=True)
-                proxy_thread.start()
-                time.sleep(1)
-                start_frontend()
-                
+            # Check and generate embeddings if using LaBSE
+            if self.use_labse:
+                print("Checking semantic search setup...")
+                print("  → Will verify/generate embeddings before starting API")
+                if not self.check_and_generate_embeddings():
+                    print("  ⚠ Semantic search API will start but may not be available")
+                print()
+            
+            print("Starting Solr proxy server on port 8888...")
+            if self.use_labse:
+                print("Starting semantic search API on port 8889...")
+            print("Starting frontend server on port 8000...")
+            print()
+            print("📱 Open in your browser:")
+            print("   http://localhost:8000/frontend/")
+            print()
+            print("Press Ctrl+C to stop all servers")
+            print("=" * 80)
+            print()
+            
+            # Set environment variable to avoid tokenizers warning when forking
+            env = os.environ.copy()
+            env['TOKENIZERS_PARALLELISM'] = 'false'
+            
+            # Start Solr proxy
+            proxy_process = subprocess.Popen(
+                [sys.executable, str(script_dir / 'solr_proxy.py')],
+                cwd=script_dir,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                env=env
+            )
+            processes.append(('Solr Proxy', proxy_process))
+            time.sleep(2)
+            
+            # Start semantic API if using LaBSE
+            semantic_process = None
+            if self.use_labse:
+                semantic_api_file = script_dir / 'semantic_api.py'
+                if semantic_api_file.exists():
+                    print("Starting semantic search API...")
+                    semantic_process = subprocess.Popen(
+                        [sys.executable, str(semantic_api_file)],
+                        cwd=script_dir,
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.PIPE,
+                        env=env
+                    )
+                    processes.append(('Semantic API', semantic_process))
+                    
+                    # Wait and verify API
+                    print("  → Waiting for API server to start...")
+                    time.sleep(2)
+                    
+                    if semantic_process.poll() is None:  # Process still running
+                        if not self.verify_semantic_api():
+                            print("  ⚠ Warning: Semantic API started but embeddings not loaded")
+                            print("  ⚠ Trying to restart API...")
+                            semantic_process.terminate()
+                            semantic_process.wait(timeout=5)
+                            time.sleep(2)
+                            
+                            # Restart
+                            semantic_process = subprocess.Popen(
+                                [sys.executable, str(semantic_api_file)],
+                                cwd=script_dir,
+                                stdout=subprocess.PIPE,
+                                stderr=subprocess.PIPE,
+                                env=env
+                            )
+                            processes[-1] = ('Semantic API', semantic_process)
+                            time.sleep(4)
+                            
+                            if not self.verify_semantic_api():
+                                print("  ✗ Semantic API still not available after restart")
+                                print("  ⚠ Please check the API logs for errors")
+                    else:
+                        print("  ✗ Semantic API process failed to start")
+                else:
+                    print("⚠ Warning: semantic_api.py not found, skipping semantic API")
+            
+            # Setup signal handlers
+            def signal_handler(sig, frame):
+                print("\n\nStopping servers...")
+                for name, proc in processes:
+                    try:
+                        proc.terminate()
+                        proc.wait(timeout=5)
+                    except Exception:
+                        try:
+                            proc.kill()
+                        except Exception:
+                            pass
+                sys.exit(0)
+            
+            signal.signal(signal.SIGINT, signal_handler)
+            signal.signal(signal.SIGTERM, signal_handler)
+            
+            # Start frontend server (blocking)
+            print("Frontend server running...")
+            frontend_process = subprocess.Popen(
+                [sys.executable, '-m', 'http.server', '8000'],
+                cwd=script_dir,
+                env=env
+            )
+            processes.append(('Frontend Server', frontend_process))
+            
+            # Wait for frontend server
+            frontend_process.wait()
+            
         except KeyboardInterrupt:
-            print("\n\nServices stopped")
+            print("\n\nStopping servers...")
+            for name, proc in processes:
+                try:
+                    proc.terminate()
+                    proc.wait(timeout=5)
+                except Exception:
+                    try:
+                        proc.kill()
+                    except Exception:
+                        pass
         except Exception as e:
             error_msg = f"Error starting services: {str(e)}"
             print(f"\n✗ {error_msg}")
             self.errors.append(error_msg)
+            # Cleanup on error
+            for name, proc in processes:
+                try:
+                    proc.terminate()
+                    proc.wait(timeout=2)
+                except Exception:
+                    try:
+                        proc.kill()
+                    except Exception:
+                        pass
             return False
         
         return True
@@ -518,6 +867,8 @@ Examples:
                        help='Configure Solr schema (synonyms and single-char matching) before indexing')
     parser.add_argument('--solr-url', default='http://localhost:8983/solr/RamenProject',
                        help='Solr URL (default: http://localhost:8983/solr/RamenProject)')
+    parser.add_argument('--use-labse', action='store_true',
+                       help='Enable LaBSE semantic embeddings (requires sentence-transformers)')
     
     args = parser.parse_args()
     
@@ -527,7 +878,8 @@ Examples:
         skip_index=args.skip_index,
         start_frontend=args.start_frontend,
         configure_solr=args.configure_solr,
-        solr_url=args.solr_url
+        solr_url=args.solr_url,
+        use_labse=args.use_labse
     )
     
     success = runner.run()

@@ -18,16 +18,29 @@ except ImportError:
     sys.exit(1)
 
 class SolrIndexer:
-    def __init__(self, solr_url='http://localhost:8983/solr/RamenProject', data_file='data/cleaned_data.json'):
+    def __init__(self, solr_url='http://localhost:8983/solr/RamenProject', data_file='data/cleaned_data.json', use_labse=False):
         self.solr_url = solr_url
         self.data_file = data_file
         self.solr = None
+        self.use_labse = use_labse
+        self.labse_embedder = None
         self.stats = {
             'total': 0,
             'indexed': 0,
             'failed': 0,
             'errors': []
         }
+        
+        if self.use_labse:
+            try:
+                from labse_embedder import LaBSEEmbedder
+                self.labse_embedder = LaBSEEmbedder()
+                if not self.labse_embedder.is_available():
+                    print("⚠ Warning: LaBSE not available, continuing without semantic embeddings")
+                    self.use_labse = False
+            except ImportError:
+                print("⚠ Warning: LaBSE embedder not found, continuing without semantic embeddings")
+                self.use_labse = False
     
     def connect(self):
         """Connect to Solr instance"""
@@ -123,6 +136,39 @@ class SolrIndexer:
         
         print(f"\nIndexing {len(articles)} articles...")
         print("=" * 80)
+        
+        # Generate LaBSE embeddings if enabled
+        embeddings = {}
+        if self.use_labse and self.labse_embedder:
+            print("\nGenerating LaBSE embeddings...")
+            print("=" * 80)
+            articles_texts = []
+            article_ids = []
+            for i, article in enumerate(articles, 1):
+                unique_id = article.get('menu_item') or article.get('title', f"item_{i}")
+                doc_id = f"{article.get('section', 'menu')}_{i}_{unique_id[:50]}".replace(' ', '_')
+                article_ids.append(doc_id)
+                
+                # Prepare text for embedding
+                text_parts = []
+                if article.get('title'):
+                    text_parts.append(article['title'])
+                if article.get('menu_item') and article['menu_item'] != article.get('title'):
+                    text_parts.append(article['menu_item'])
+                if article.get('content'):
+                    text_parts.append(article['content'][:500])
+                if article.get('menu_category'):
+                    text_parts.append(article['menu_category'])
+                articles_texts.append(' '.join(text_parts) if text_parts else '')
+            
+            # Generate embeddings in batches
+            article_embeddings = self.labse_embedder.generate_embeddings_batch(articles_texts, batch_size=32)
+            embeddings = {doc_id: emb for doc_id, emb in zip(article_ids, article_embeddings) if emb is not None}
+            
+            # Save embeddings to file
+            embeddings_file = 'data/embeddings.json'
+            self.labse_embedder.save_embeddings(embeddings, embeddings_file)
+            print(f"✓ Generated {len(embeddings)} embeddings")
         
         # Prepare documents
         documents = []

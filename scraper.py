@@ -821,7 +821,7 @@ class RamenScraper:
             ('soup' in title_lower and 'ramen' in title_lower)
         )
         
-        # Priority order: IPA Drinks > URL Prefix (ra/me/tu) > tp prefix (Soup > Drinks > Side Dishes) > Title-based
+        # Priority order: IPA Drinks > URL Prefix (ra/me/tu/ni/sr) > tp prefix (Soup > Drinks > Side Dishes) > Title-based
         if is_ipa_drink:
             product_data['menu_category'] = 'Drinks'
         elif product_id:
@@ -832,6 +832,8 @@ class RamenScraper:
                 product_data['menu_category'] = 'Noodles'
             elif product_id.startswith('tu'):
                 product_data['menu_category'] = 'Tsukemen'
+            elif product_id.startswith('ni') or product_id.startswith('sr'):
+                product_data['menu_category'] = 'Side Dishes'
             elif product_id.startswith('tp'):
                 # For tp prefix: check Soup > Drinks > Side Dishes
                 if is_soup:
