@@ -36,8 +36,8 @@ class SolrProxyHandler(BaseHTTPRequestHandler):
                 # Direct Solr path
                 solr_full_url = f"{SOLR_URL}{solr_path}"
             else:
-                # Default to afuri_menu core
-                solr_full_url = f"{SOLR_URL}/solr/afuri_menu/select"
+                # Default to RamenProject core
+                solr_full_url = f"{SOLR_URL}/solr/RamenProject/select"
             
             if query_string:
                 solr_full_url += f"?{query_string}"

@@ -18,7 +18,7 @@ except ImportError:
     sys.exit(1)
 
 class SolrIndexer:
-    def __init__(self, solr_url='http://localhost:8983/solr/afuri_menu', data_file='data/cleaned_data.json'):
+    def __init__(self, solr_url='http://localhost:8983/solr/RamenProject', data_file='data/cleaned_data.json'):
         self.solr_url = solr_url
         self.data_file = data_file
         self.solr = None
@@ -42,8 +42,8 @@ class SolrIndexer:
             print(f"✗ Failed to connect to Solr: {e}")
             print("\nPlease make sure:")
             print("1. Solr is running (check with: solr status)")
-            print("2. A core named 'afuri_menu' exists")
-            print("3. The URL is correct (default: http://localhost:8983/solr/afuri_menu)")
+            print("2. A core named 'RamenProject' exists")
+            print("3. The URL is correct (default: http://localhost:8983/solr/RamenProject)")
             return False
     
     def load_data(self):
