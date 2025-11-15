@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ Solr managed schema for AFURI menu search
+ This schema includes synonym expansion and fuzzy search support
+-->
+<schema name="afuri_menu" version="1.6">
+  
+  <!-- Field Types -->
+  
+  <!-- Text field with synonym expansion and fuzzy search support -->
+  <fieldType name="text_synonym" class="solr.TextField" positionIncrementGap="100">
+    <analyzer type="index">
+      <tokenizer class="solr.StandardTokenizerFactory"/>
+      <filter class="solr.LowerCaseFilterFactory"/>
+      <filter class="solr.SynonymGraphFilterFactory" synonyms="synonyms.txt" ignoreCase="true" expand="true"/>
+      <filter class="solr.FlattenGraphFilterFactory"/>
+      <filter class="solr.StopFilterFactory" words="stopwords.txt" ignoreCase="true"/>
+    </analyzer>
+    <analyzer type="query">
+      <tokenizer class="solr.StandardTokenizerFactory"/>
+      <filter class="solr.LowerCaseFilterFactory"/>
+      <filter class="solr.SynonymGraphFilterFactory" synonyms="synonyms.txt" ignoreCase="true" expand="true"/>
+      <filter class="solr.StopFilterFactory" words="stopwords.txt" ignoreCase="true"/>
+    </analyzer>
+  </fieldType>
+  
+  <!-- Text field without synonym expansion (for exact matches) -->
+  <fieldType name="text_general" class="solr.TextField" positionIncrementGap="100">
+    <analyzer type="index">
+      <tokenizer class="solr.StandardTokenizerFactory"/>
+      <filter class="solr.LowerCaseFilterFactory"/>
+      <filter class="solr.StopFilterFactory" words="stopwords.txt" ignoreCase="true"/>
+    </analyzer>
+    <analyzer type="query">
+      <tokenizer class="solr.StandardTokenizerFactory"/>
+      <filter class="solr.LowerCaseFilterFactory"/>
+      <filter class="solr.StopFilterFactory" words="stopwords.txt" ignoreCase="true"/>
+    </analyzer>
+  </fieldType>
+  
+  <!-- String field for exact matching -->
+  <fieldType name="string" class="solr.StrField" sortMissingLast="true" />
+  
+  <!-- Date field -->
+  <fieldType name="date" class="solr.DatePointField" docValues="true"/>
+  
+  <!-- Fields -->
+  
+  <field name="id" type="string" indexed="true" stored="true" required="true" multiValued="false" />
+  <field name="url" type="string" indexed="true" stored="true" multiValued="false" />
+  <field name="title" type="text_synonym" indexed="true" stored="true" multiValued="false" />
+  <field name="content" type="text_synonym" indexed="true" stored="true" multiValued="false" />
+  <field name="section" type="string" indexed="true" stored="true" multiValued="false" />
+  <field name="menu_item" type="text_synonym" indexed="true" stored="true" multiValued="false" />
+  <field name="menu_category" type="string" indexed="true" stored="true" multiValued="false" />
+  <field name="ingredients" type="text_synonym" indexed="true" stored="true" multiValued="false" />
+  <field name="store_name" type="text_general" indexed="true" stored="true" multiValued="false" />
+  <field name="date" type="date" indexed="true" stored="true" multiValued="false" />
+  <field name="tags" type="string" indexed="true" stored="true" multiValued="true" />
+  
+  <!-- Copy fields for multi-field search -->
+  <field name="text" type="text_synonym" indexed="true" stored="false" multiValued="true"/>
+  
+  <!-- Default search field -->
+  <defaultSearchField>text</defaultSearchField>
+  
+  <!-- Query parser configuration -->
+  <solrQueryParser defaultOperator="OR"/>
+  
+</schema>
+

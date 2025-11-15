@@ -142,40 +142,14 @@ class ArticleSearch {
         
         let finalQuery = '*:*';
         
-        // Build search query for text fields with fuzzy search and synonym support
+        // Build search query - Solr handles synonyms and fuzzy search automatically
+        // Using edismax query parser (configured in solrconfig.xml)
         let searchQuery = '';
         if (query) {
-            // Escape special Solr characters but keep spaces for word matching
-            // Don't escape ~ for fuzzy search
-            const escapedQuery = query.replace(/[+\-&|!(){}[\]^"*?:\\]/g, '\\$&');
-            // Split query into words and search across multiple text fields
-            const words = escapedQuery.split(/\s+/).filter(w => w.length > 0);
-            if (words.length > 0) {
-                const wordQueries = words.map(word => {
-                    // Expand word with synonyms
-                    const expandedWords = this.expandSynonyms(word);
-                    
-                    // Build query for each synonym variant
-                    const synonymQueries = expandedWords.map(expandedWord => {
-                        // Escape the expanded word
-                        const escapedWord = expandedWord.replace(/[+\-&|!(){}[\]^"*?:\\]/g, '\\$&');
-                        
-                        // For short words (<=3 chars), use wildcard only
-                        // For longer words, use both wildcard and fuzzy search
-                        if (escapedWord.length <= 3) {
-                            return `(title:*${escapedWord}* OR content:*${escapedWord}* OR menu_item:*${escapedWord}* OR ingredients:*${escapedWord}*)`;
-                        } else {
-                            // Use fuzzy search with edit distance of 1-2 for typos
-                            // Combine wildcard (prefix/suffix) and fuzzy search for better matching
-                            return `(title:(*${escapedWord}* OR ${escapedWord}~2) OR content:(*${escapedWord}* OR ${escapedWord}~2) OR menu_item:(*${escapedWord}* OR ${escapedWord}~2) OR ingredients:(*${escapedWord}* OR ${escapedWord}~2))`;
-                        }
-                    });
-                    
-                    // Combine all synonym variants with OR
-                    return `(${synonymQueries.join(' OR ')})`;
-                });
-                searchQuery = wordQueries.join(' AND ');
-            }
+            // Simple query - Solr will handle synonym expansion and fuzzy matching
+            // Escape special Solr characters for safety
+            const escapedQuery = query.replace(/[+\-&|!(){}[\]^"~*?:\\]/g, '\\$&');
+            searchQuery = escapedQuery;
         }
         
         if (queryParts.length > 0) {
@@ -216,9 +190,14 @@ class ArticleSearch {
 
     async searchSolr(query) {
         // Use proxy to avoid CORS issues
+        // Using edismax query parser with default configuration from solrconfig.xml
+        // Solr will handle synonym expansion and fuzzy matching automatically
         const solrUrl = 'http://localhost:8888/solr/afuri_menu/select';
         const params = new URLSearchParams({
             q: query,
+            defType: 'edismax',  // Use edismax for better multi-field search
+            qf: 'title^2.0 content^1.5 menu_item^2.5 ingredients^1.0 menu_category^2.0',  // Field boosts (added menu_category)
+            pf: 'title^3.0 menu_item^3.0',  // Phrase field boosts
             rows: 1000,
             wt: 'json'
         });
@@ -646,40 +625,14 @@ class ArticleSearch {
         const searchInput = document.getElementById('searchInput').value.trim();
         let finalQuery = '*:*';
         
-        // Build search query for text fields with fuzzy search and synonym support
+        // Build search query - Solr handles synonyms and fuzzy search automatically
+        // Using edismax query parser (configured in solrconfig.xml)
         let searchQuery = '';
         if (searchInput) {
-            // Escape special Solr characters but keep spaces for word matching
-            // Don't escape ~ for fuzzy search
-            const escapedQuery = searchInput.replace(/[+\-&|!(){}[\]^"*?:\\]/g, '\\$&');
-            // Split query into words and search across multiple text fields
-            const words = escapedQuery.split(/\s+/).filter(w => w.length > 0);
-            if (words.length > 0) {
-                const wordQueries = words.map(word => {
-                    // Expand word with synonyms
-                    const expandedWords = this.expandSynonyms(word);
-                    
-                    // Build query for each synonym variant
-                    const synonymQueries = expandedWords.map(expandedWord => {
-                        // Escape the expanded word
-                        const escapedWord = expandedWord.replace(/[+\-&|!(){}[\]^"*?:\\]/g, '\\$&');
-                        
-                        // For short words (<=3 chars), use wildcard only
-                        // For longer words, use both wildcard and fuzzy search
-                        if (escapedWord.length <= 3) {
-                            return `(title:*${escapedWord}* OR content:*${escapedWord}* OR menu_item:*${escapedWord}* OR ingredients:*${escapedWord}*)`;
-                        } else {
-                            // Use fuzzy search with edit distance of 1-2 for typos
-                            // Combine wildcard (prefix/suffix) and fuzzy search for better matching
-                            return `(title:(*${escapedWord}* OR ${escapedWord}~2) OR content:(*${escapedWord}* OR ${escapedWord}~2) OR menu_item:(*${escapedWord}* OR ${escapedWord}~2) OR ingredients:(*${escapedWord}* OR ${escapedWord}~2))`;
-                        }
-                    });
-                    
-                    // Combine all synonym variants with OR
-                    return `(${synonymQueries.join(' OR ')})`;
-                });
-                searchQuery = wordQueries.join(' AND ');
-            }
+            // Simple query - Solr will handle synonym expansion and fuzzy matching
+            // Escape special Solr characters for safety
+            const escapedQuery = searchInput.replace(/[+\-&|!(){}[\]^"~*?:\\]/g, '\\$&');
+            searchQuery = escapedQuery;
         }
         
         if (queryParts.length > 0) {

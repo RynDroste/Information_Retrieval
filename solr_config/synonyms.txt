@@ -1,0 +1,38 @@
+# Synonym mappings for AFURI menu search
+# Format: term1,term2,term3 => synonym1,synonym2
+# This file supports bidirectional synonym expansion
+
+# Salt-related synonyms
+salt,salty,shio => salt,salty,shio
+
+# Soy sauce synonyms
+soy,shoyu => soy,shoyu
+
+# Egg synonyms
+egg,nitamago,tamago => egg,nitamago,tamago
+
+# Pork/Chashu synonyms
+pork,chashu => pork,chashu
+
+# Noodle/Ramen synonyms
+noodle,ramen,men => noodle,ramen,men
+
+# Spicy synonyms
+spicy,spice,kara,ratan => spicy,spice,kara,ratan
+
+# Yuzu/Citrus synonyms
+yuzu,citrus => yuzu,citrus
+
+# Chicken synonyms
+chicken,poultry => chicken,poultry
+
+# Miso
+miso => miso
+
+# Drink/Drinks synonyms
+drink,drinks => drink,drinks
+
+# Category variations
+side dish,side dishes => side dish,side dishes
+noodle,noodles => noodle,noodles
+ramen => ramen

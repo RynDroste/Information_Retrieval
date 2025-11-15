@@ -50,27 +50,22 @@ Open in browser: **http://localhost:8000/frontend/**
 
 ### Fuzzy Search Support
 
-The search system supports fuzzy matching to handle typos and partial matches:
+The search system supports fuzzy matching to handle typos and partial matches. **These features are implemented in Solr** for better performance:
 
-- **Wildcard Matching**: Uses `*word*` pattern for substring matching
-- **Fuzzy Matching**: Uses Solr's fuzzy search (`word~2`) with edit distance of 2 for typo tolerance
-- **Smart Query Building**: 
-  - Short words (≤3 characters): Uses wildcard matching only
-  - Longer words (>3 characters): Combines wildcard and fuzzy search for better results
+- **Automatic Fuzzy Matching**: Solr's text analysis handles typo tolerance automatically
 - **Multi-field Search**: Searches across title, content, menu_item, and ingredients fields simultaneously
+- **Field Boosting**: Title and menu_item fields have higher weights for better relevance
+- **Phrase Matching**: Prioritizes exact phrase matches in title and menu_item fields
 
 **Example**: Searching for "yuzu" will also match "yusu", "yuzo", "yuzu ramen", etc.
 
 ### Synonym Expansion
 
-The search system includes synonym mapping to handle English-Japanese translations and related terms:
+The search system includes synonym mapping to handle English-Japanese translations and related terms. **Synonyms are configured in Solr** (`solr_config/synonyms.txt`):
 
-- **Automatic Synonym Expansion**: When you search for a term, the system automatically searches for its synonyms as well
+- **Automatic Synonym Expansion**: Solr automatically expands queries with synonyms during indexing and querying
 - **Bidirectional Mapping**: Synonyms work in both directions (e.g., "salt" ↔ "shio")
-- **Word Form Variations**: The system handles common word form variations:
-  - Adjective forms: "salty" → "salt" → "shio"
-  - Suffix handling: -y, -ly, -ed, -ing, -er, -est
-- **Common Mappings**:
+- **Common Mappings** (configured in `synonyms.txt`):
   - `salt`, `salty` ↔ `shio` (Japanese for salt)
   - `soy` ↔ `shoyu` (Japanese for soy sauce)
   - `egg` ↔ `nitamago`, `tamago` (Japanese for egg)
@@ -81,6 +76,8 @@ The search system includes synonym mapping to handle English-Japanese translatio
 **Examples**: 
 - Searching for "salt" or "salty" will automatically also search for "shio", so you'll find "Shio Ramen" and "Yuzu Shio Ramen" in the results.
 - Searching for "spicy" will also match "kara" and "ratan" variants.
+
+**Note**: To add more synonyms, edit `solr_config/synonyms.txt` and reload the Solr core.
 
 ## 🔧 Solr Setup (Optional)
 
@@ -98,6 +95,38 @@ tar xzf solr-8.11.2.tgz
 cd solr-8.11.2
 ./bin/solr start
 ./bin/solr create -c afuri_menu
+```
+
+### Configure Solr for Synonym and Fuzzy Search
+
+After creating the core, configure Solr to enable synonym expansion and fuzzy search:
+
+**For Solr 9.x (managed schema - recommended):**
+```bash
+# Use the quick setup script (uses Schema API)
+bash quick_setup_solr.sh
+
+# Then re-index your data
+python3 run_pipeline.py --skip-scrape --skip-clean
+```
+
+**For Solr 8.x or manual setup:**
+```bash
+# Copy configuration files
+cp solr_config/synonyms.txt /opt/homebrew/var/lib/solr/afuri_menu/conf/
+cp solr_config/stopwords.txt /opt/homebrew/var/lib/solr/afuri_menu/conf/
+
+# Use Schema API to add field type and update fields
+bash setup_solr_schema_api.sh
+
+# Re-index your data
+python3 run_pipeline.py --skip-scrape --skip-clean
+```
+
+**Verify configuration:**
+```bash
+# Test synonym search - should return "Shio Ramen" results
+curl "http://localhost:8983/solr/afuri_menu/select?q=salt&defType=edismax&rows=5"
 ```
 
 ### Index Data
@@ -124,7 +153,13 @@ Information_Retrieval/
 ├── data_cleaner.py          # Cleaning module
 ├── solr_indexer.py          # Indexing module
 ├── solr_proxy.py            # Solr proxy server
+├── setup_solr_config.sh     # Solr configuration setup script
 ├── start_frontend.sh        # Frontend startup script
+├── solr_config/             # Solr configuration files
+│   ├── managed-schema       # Solr schema with synonym support
+│   ├── solrconfig.xml       # Solr configuration
+│   ├── synonyms.txt         # Synonym mappings
+│   └── stopwords.txt        # Stop words
 ├── frontend/                # Frontend interface
 │   ├── index.html
 │   ├── styles.css
