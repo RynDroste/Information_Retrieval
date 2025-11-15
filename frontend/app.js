@@ -7,6 +7,30 @@ class ArticleSearch {
             category: null,
             tag: null
         };
+        // Synonym mapping for search expansion
+        // Maps English terms to Japanese/alternative terms used in the menu
+        this.synonyms = {
+            'salt': ['shio', 'salt', 'salty'],
+            'salty': ['shio', 'salt', 'salty'],
+            'shio': ['salt', 'shio', 'salty'],
+            'soy': ['shoyu', 'soy'],
+            'shoyu': ['soy', 'shoyu'],
+            'miso': ['miso'],
+            'yuzu': ['yuzu', 'citrus'],
+            'citrus': ['yuzu', 'citrus'],
+            'chicken': ['chicken', 'poultry'],
+            'pork': ['pork', 'chashu'],
+            'chashu': ['pork', 'chashu'],
+            'egg': ['nitamago', 'egg', 'tamago'],
+            'nitamago': ['egg', 'nitamago', 'tamago'],
+            'noodle': ['noodle', 'men', 'ramen'],
+            'ramen': ['ramen', 'noodle', 'men'],
+            'men': ['noodle', 'ramen', 'men'],
+            'spicy': ['spicy', 'kara', 'ratan', 'spice'],
+            'spice': ['spicy', 'kara', 'ratan'],
+            'kara': ['spicy', 'kara', 'spice'],
+            'ratan': ['spicy', 'ratan', 'spice']
+        };
         this.init();
     }
 
@@ -52,6 +76,43 @@ class ArticleSearch {
         }
     }
 
+    /**
+     * Expand a word with its synonyms
+     * @param {string} word - The word to expand
+     * @returns {string[]} - Array of words including the original and synonyms
+     */
+    expandSynonyms(word) {
+        const lowerWord = word.toLowerCase();
+        let expandedWords = new Set([word]);
+        
+        // Check direct synonym mapping
+        if (this.synonyms[lowerWord]) {
+            this.synonyms[lowerWord].forEach(syn => expandedWords.add(syn));
+        }
+        
+        // Try to find synonyms by removing common suffixes (simple stemming)
+        // Handle -y, -ly, -ed, -ing, -er, -est suffixes
+        const suffixes = ['y', 'ly', 'ed', 'ing', 'er', 'est'];
+        for (const suffix of suffixes) {
+            if (lowerWord.endsWith(suffix) && lowerWord.length > suffix.length + 2) {
+                const stem = lowerWord.slice(0, -suffix.length);
+                if (this.synonyms[stem]) {
+                    this.synonyms[stem].forEach(syn => expandedWords.add(syn));
+                }
+            }
+        }
+        
+        // Also try adding -y suffix to check for adjective forms
+        if (!lowerWord.endsWith('y') && lowerWord.length > 3) {
+            const withY = lowerWord + 'y';
+            if (this.synonyms[withY]) {
+                this.synonyms[withY].forEach(syn => expandedWords.add(syn));
+            }
+        }
+        
+        return Array.from(expandedWords);
+    }
+
     async performSearch() {
         // Clear filters when performing manual search
         // Or keep filters - let's keep them for now
@@ -81,17 +142,38 @@ class ArticleSearch {
         
         let finalQuery = '*:*';
         
-        // Build search query for text fields
+        // Build search query for text fields with fuzzy search and synonym support
         let searchQuery = '';
         if (query) {
             // Escape special Solr characters but keep spaces for word matching
-            const escapedQuery = query.replace(/[+\-&|!(){}[\]^"~*?:\\]/g, '\\$&');
+            // Don't escape ~ for fuzzy search
+            const escapedQuery = query.replace(/[+\-&|!(){}[\]^"*?:\\]/g, '\\$&');
             // Split query into words and search across multiple text fields
             const words = escapedQuery.split(/\s+/).filter(w => w.length > 0);
             if (words.length > 0) {
-                const wordQueries = words.map(word => 
-                    `(title:*${word}* OR content:*${word}* OR menu_item:*${word}* OR ingredients:*${word}*)`
-                );
+                const wordQueries = words.map(word => {
+                    // Expand word with synonyms
+                    const expandedWords = this.expandSynonyms(word);
+                    
+                    // Build query for each synonym variant
+                    const synonymQueries = expandedWords.map(expandedWord => {
+                        // Escape the expanded word
+                        const escapedWord = expandedWord.replace(/[+\-&|!(){}[\]^"*?:\\]/g, '\\$&');
+                        
+                        // For short words (<=3 chars), use wildcard only
+                        // For longer words, use both wildcard and fuzzy search
+                        if (escapedWord.length <= 3) {
+                            return `(title:*${escapedWord}* OR content:*${escapedWord}* OR menu_item:*${escapedWord}* OR ingredients:*${escapedWord}*)`;
+                        } else {
+                            // Use fuzzy search with edit distance of 1-2 for typos
+                            // Combine wildcard (prefix/suffix) and fuzzy search for better matching
+                            return `(title:(*${escapedWord}* OR ${escapedWord}~2) OR content:(*${escapedWord}* OR ${escapedWord}~2) OR menu_item:(*${escapedWord}* OR ${escapedWord}~2) OR ingredients:(*${escapedWord}* OR ${escapedWord}~2))`;
+                        }
+                    });
+                    
+                    // Combine all synonym variants with OR
+                    return `(${synonymQueries.join(' OR ')})`;
+                });
                 searchQuery = wordQueries.join(' AND ');
             }
         }
@@ -564,17 +646,38 @@ class ArticleSearch {
         const searchInput = document.getElementById('searchInput').value.trim();
         let finalQuery = '*:*';
         
-        // Build search query for text fields
+        // Build search query for text fields with fuzzy search and synonym support
         let searchQuery = '';
         if (searchInput) {
             // Escape special Solr characters but keep spaces for word matching
-            const escapedQuery = searchInput.replace(/[+\-&|!(){}[\]^"~*?:\\]/g, '\\$&');
+            // Don't escape ~ for fuzzy search
+            const escapedQuery = searchInput.replace(/[+\-&|!(){}[\]^"*?:\\]/g, '\\$&');
             // Split query into words and search across multiple text fields
             const words = escapedQuery.split(/\s+/).filter(w => w.length > 0);
             if (words.length > 0) {
-                const wordQueries = words.map(word => 
-                    `(title:*${word}* OR content:*${word}* OR menu_item:*${word}* OR ingredients:*${word}*)`
-                );
+                const wordQueries = words.map(word => {
+                    // Expand word with synonyms
+                    const expandedWords = this.expandSynonyms(word);
+                    
+                    // Build query for each synonym variant
+                    const synonymQueries = expandedWords.map(expandedWord => {
+                        // Escape the expanded word
+                        const escapedWord = expandedWord.replace(/[+\-&|!(){}[\]^"*?:\\]/g, '\\$&');
+                        
+                        // For short words (<=3 chars), use wildcard only
+                        // For longer words, use both wildcard and fuzzy search
+                        if (escapedWord.length <= 3) {
+                            return `(title:*${escapedWord}* OR content:*${escapedWord}* OR menu_item:*${escapedWord}* OR ingredients:*${escapedWord}*)`;
+                        } else {
+                            // Use fuzzy search with edit distance of 1-2 for typos
+                            // Combine wildcard (prefix/suffix) and fuzzy search for better matching
+                            return `(title:(*${escapedWord}* OR ${escapedWord}~2) OR content:(*${escapedWord}* OR ${escapedWord}~2) OR menu_item:(*${escapedWord}* OR ${escapedWord}~2) OR ingredients:(*${escapedWord}* OR ${escapedWord}~2))`;
+                        }
+                    });
+                    
+                    // Combine all synonym variants with OR
+                    return `(${synonymQueries.join(' OR ')})`;
+                });
                 searchQuery = wordQueries.join(' AND ');
             }
         }

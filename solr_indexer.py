@@ -200,5 +200,3 @@ class SolrIndexer:
         else:
             print("Search test failed")
 
-# 此文件仅作为模块使用，请使用 run_pipeline.py 运行完整流程
-

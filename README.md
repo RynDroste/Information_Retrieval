@@ -1,56 +1,90 @@
-# AFURI 菜单爬取与搜索系统
+# AFURI Menu Scraping and Search System
 
-从 AFURI 网站爬取菜单数据，进行清理和索引，提供前端搜索界面。
+Scrape menu data from the AFURI website, clean and index it, and provide a frontend search interface.
 
-## 🚀 快速开始
+## 🚀 Quick Start
 
-### 1. 安装依赖
+### 1. Install Dependencies
 
 ```bash
 pip3 install -r requirements.txt
 ```
 
-### 2. 运行完整流程
+### 2. Run Complete Pipeline
 
 ```bash
-# 运行完整流程（爬取 -> 清理 -> 索引）
+# Run complete pipeline (scrape -> clean -> index)
 python3 run_pipeline.py
 
-# 如果 Solr 未运行，跳过索引步骤
+# Skip indexing if Solr is not running
 python3 run_pipeline.py --skip-index
 
-# 运行并启动前端服务
+# Run and start frontend server
 python3 run_pipeline.py --start-frontend
 ```
 
-### 3. 使用前端界面
+### 3. Use Frontend Interface
 
 ```bash
-# 启动前端服务器
+# Start frontend server
 bash start_frontend.sh
-# 或
+# or
 python3 -m http.server 8000
 ```
 
-在浏览器中打开：**http://localhost:8000/frontend/**
+Open in browser: **http://localhost:8000/frontend/**
 
-## 📖 功能说明
+## 📖 Features
 
-### 数据处理流程
+### Data Processing Pipeline
 
-1. **爬取** - 从 AFURI 网站爬取菜单、店铺和品牌信息
-2. **清理** - 清理和规范化数据，移除重复项
-3. **索引** - 将数据索引到 Solr（可选）
-4. **搜索** - 通过前端界面搜索和浏览
+1. **Scraping** - Scrape menu, store, and brand information from AFURI website
+2. **Cleaning** - Clean and normalize data, remove duplicates
+3. **Indexing** - Index data to Solr (optional)
+4. **Searching** - Search and browse through frontend interface
 
-### 搜索模式
+### Search Modes
 
-- **本地搜索**：直接搜索 JSON 文件，无需 Solr
-- **Solr 搜索**：使用 Solr 提供更强大的搜索功能（需要安装 Solr）
+- **Local Search**: Directly search JSON files, no Solr required
+- **Solr Search**: Use Solr for more powerful search capabilities (requires Solr installation)
 
-## 🔧 Solr 设置（可选）
+### Fuzzy Search Support
 
-### 安装和启动
+The search system supports fuzzy matching to handle typos and partial matches:
+
+- **Wildcard Matching**: Uses `*word*` pattern for substring matching
+- **Fuzzy Matching**: Uses Solr's fuzzy search (`word~2`) with edit distance of 2 for typo tolerance
+- **Smart Query Building**: 
+  - Short words (≤3 characters): Uses wildcard matching only
+  - Longer words (>3 characters): Combines wildcard and fuzzy search for better results
+- **Multi-field Search**: Searches across title, content, menu_item, and ingredients fields simultaneously
+
+**Example**: Searching for "yuzu" will also match "yusu", "yuzo", "yuzu ramen", etc.
+
+### Synonym Expansion
+
+The search system includes synonym mapping to handle English-Japanese translations and related terms:
+
+- **Automatic Synonym Expansion**: When you search for a term, the system automatically searches for its synonyms as well
+- **Bidirectional Mapping**: Synonyms work in both directions (e.g., "salt" ↔ "shio")
+- **Word Form Variations**: The system handles common word form variations:
+  - Adjective forms: "salty" → "salt" → "shio"
+  - Suffix handling: -y, -ly, -ed, -ing, -er, -est
+- **Common Mappings**:
+  - `salt`, `salty` ↔ `shio` (Japanese for salt)
+  - `soy` ↔ `shoyu` (Japanese for soy sauce)
+  - `egg` ↔ `nitamago`, `tamago` (Japanese for egg)
+  - `pork` ↔ `chashu` (Japanese for pork)
+  - `noodle` ↔ `ramen`, `men` (Japanese for noodles)
+  - `spicy`, `spice` ↔ `kara`, `ratan` (Japanese for spicy)
+
+**Examples**: 
+- Searching for "salt" or "salty" will automatically also search for "shio", so you'll find "Shio Ramen" and "Yuzu Shio Ramen" in the results.
+- Searching for "spicy" will also match "kara" and "ratan" variants.
+
+## 🔧 Solr Setup (Optional)
+
+### Installation and Startup
 
 ```bash
 # macOS
@@ -66,89 +100,89 @@ cd solr-8.11.2
 ./bin/solr create -c afuri_menu
 ```
 
-### 索引数据
+### Index Data
 
 ```bash
 python3 run_pipeline.py
-# 或只执行索引
+# or only index
 python3 run_pipeline.py --skip-scrape --skip-clean
 ```
 
-### Solr 的优势
+### Solr Advantages
 
-- ⚡ **快速搜索** - 索引优化，毫秒级响应
-- 🎯 **智能排序** - 相关性评分，最相关的结果在前
-- 🔍 **复杂查询** - 支持布尔查询、短语搜索等
-- 📊 **高级功能** - 分面搜索、高亮显示、统计分析
+- ⚡ **Fast Search** - Optimized indexing, millisecond response times
+- 🎯 **Smart Ranking** - Relevance scoring, most relevant results first
+- 🔍 **Complex Queries** - Support for boolean queries, phrase search, etc.
+- 📊 **Advanced Features** - Faceted search, highlighting, statistical analysis
 
-## 📁 项目结构
+## 📁 Project Structure
 
 ```
 Information_Retrieval/
-├── run_pipeline.py          # 主流程脚本
-├── scraper.py               # 爬取模块
-├── data_cleaner.py          # 清理模块
-├── solr_indexer.py          # 索引模块
-├── solr_proxy.py            # Solr 代理服务器
-├── start_frontend.sh        # 前端启动脚本
-├── frontend/                # 前端界面
+├── run_pipeline.py          # Main pipeline script
+├── scraper.py               # Scraping module
+├── data_cleaner.py          # Cleaning module
+├── solr_indexer.py          # Indexing module
+├── solr_proxy.py            # Solr proxy server
+├── start_frontend.sh        # Frontend startup script
+├── frontend/                # Frontend interface
 │   ├── index.html
 │   ├── styles.css
 │   └── app.js
-└── data/                    # 数据目录
-    ├── scraped_data.json    # 原始数据
-    └── cleaned_data.json    # 清理后数据
+└── data/                    # Data directory
+    ├── scraped_data.json    # Raw data
+    └── cleaned_data.json    # Cleaned data
 ```
 
-## 🛠️ 常用命令
+## 🛠️ Common Commands
 
 ```bash
-# 运行完整流程
+# Run complete pipeline
 python3 run_pipeline.py
 
-# 只执行爬取和清理
+# Only scrape and clean
 python3 run_pipeline.py --skip-index
 
-# 只执行索引
+# Only index
 python3 run_pipeline.py --skip-scrape --skip-clean
 
-# 检查 Solr 状态
+# Check Solr status
 solr status
 
-# 查看数据统计
-python3 -c "import json; data = json.load(open('data/cleaned_data.json')); print(f'共 {len(data)} 个菜单项')"
+# View data statistics
+python3 -c "import json; data = json.load(open('data/cleaned_data.json')); print(f'Total {len(data)} menu items')"
 ```
 
-## ❓ 故障排除
+## ❓ Troubleshooting
 
-### 问题：找不到模块
+### Issue: Module not found
 ```bash
 pip3 install -r requirements.txt
 ```
 
-### 问题：无法访问网站
-- 检查网络连接
-- 确认 https://afuri.com/menu/ 可以访问
+### Issue: Cannot access website
+- Check network connection
+- Verify https://afuri.com/menu/ is accessible
 
-### 问题：Solr 连接失败
-- 确认 Solr 正在运行：`solr status`
-- 确认核心已创建：`solr create -c afuri_menu`
-- 检查端口 8983 是否被占用
+### Issue: Solr connection failed
+- Verify Solr is running: `solr status`
+- Verify core is created: `solr create -c afuri_menu`
+- Check if port 8983 is occupied
 
-### 问题：前端无法加载数据
-- 确认已运行 `python3 run_pipeline.py`
-- 确认 `data/cleaned_data.json` 文件存在
-- 检查浏览器控制台是否有错误
+### Issue: Frontend cannot load data
+- Verify `python3 run_pipeline.py` has been run
+- Verify `data/cleaned_data.json` file exists
+- Check browser console for errors
 
-## 📊 数据格式
+## 📊 Data Format
 
-每个菜单项包含以下字段：
+Each menu item contains the following fields:
 
 ```json
 {
   "url": "https://afuri.com/menu/",
   "title": "Menu - Yuzu Shio Ramen",
-  "content": "菜单描述...",
+  "content": "Menu description...",
   "section": "Menu",
   "menu_item": "Yuzu Shio Ramen",
   "menu_category": "Ramen",
@@ -156,15 +190,15 @@ pip3 install -r requirements.txt
 }
 ```
 
-**分类**：Ramen, Noodles, Side Dishes, Drinks, Chi-yu
+**Categories**: Ramen, Noodles, Side Dishes, Drinks, Chi-yu
 
-## 📝 注意事项
+## 📝 Notes
 
-- 数据使用 UTF-8 编码，支持日文字符
-- 脚本会自动创建 `data/` 目录
-- 菜单项会自动分类
-- Solr 是可选的，本地搜索也可以正常工作
+- Data uses UTF-8 encoding, supports Japanese characters
+- Scripts automatically create `data/` directory
+- Menu items are automatically categorized
+- Solr is optional, local search works fine
 
 ---
 
-**最后更新**：2025
+**Last Updated**: 2025
