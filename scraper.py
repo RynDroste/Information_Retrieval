@@ -10,7 +10,9 @@ from bs4 import BeautifulSoup
 import json
 import os
 import re
-from urllib.parse import urljoin
+import time
+from urllib.parse import urljoin, urlparse, parse_qs, urlencode, urlunparse
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 class RamenScraper:
     def __init__(self, base_url="https://afuri.com"):
@@ -21,17 +23,87 @@ class RamenScraper:
         })
         self.articles = []
         
-    def get_page(self, url):
+    def fix_encoding(self, text):
+        """Fix common encoding issues (mojibake)"""
+        if not text:
+            return text
+        
+        # Common mojibake patterns
+        fixes = {
+            'ï¼ˆ': '（',
+            'ï¼‰': '）',
+            'ï¼»': '［',
+            'ï¼½': '］',
+            'ã€‚': '。',
+            'ã€': '、',
+            'æœ¬': '本',
+            'ã‚»ãƒƒãƒˆ': 'セット',
+            'åŒæ¢±': '同梱',
+            'ä¸å¯': '不可',
+            'å“': '品',
+        }
+        
+        for wrong, correct in fixes.items():
+            text = text.replace(wrong, correct)
+        
+        # Try to fix double-encoded UTF-8
+        if 'ï¼' in text or ('ã' in text and len([c for c in text if ord(c) > 127]) > len(text) * 0.1):
+            try:
+                # Try latin-1 -> utf-8 conversion
+                fixed = text.encode('latin-1', errors='ignore').decode('utf-8', errors='ignore')
+                # Check if fix improved the text (fewer mojibake characters)
+                if 'ï¼' not in fixed and 'ã' not in fixed[:100]:
+                    return fixed
+            except (UnicodeEncodeError, UnicodeDecodeError):
+                pass
+        
+        return text
+    
+    def get_page(self, url, delay=0.3):
         """Fetch webpage content"""
         try:
             print(f"Scraping: {url}")
+            time.sleep(delay)
             response = self.session.get(url, timeout=10)
             response.raise_for_status()
-            response.encoding = response.apparent_encoding or 'utf-8'
-            return response.text
+            
+            # Try multiple encoding strategies
+            text = None
+            encodings_to_try = ['utf-8', response.apparent_encoding, 'utf-8-sig', 'latin-1']
+            
+            for encoding in encodings_to_try:
+                if encoding:
+                    try:
+                        response.encoding = encoding
+                        text = response.text
+                        # Check if text looks correct (not too many mojibake characters)
+                        if text and 'ï¼' not in text[:500] and 'ã' not in text[:500]:
+                            break
+                    except:
+                        continue
+            
+            # If still have issues, try raw decode
+            if not text or ('ï¼' in text[:500] or 'ã' in text[:500]):
+                try:
+                    text = response.content.decode('utf-8', errors='replace')
+                except:
+                    text = response.content.decode('utf-8', errors='ignore')
+            
+            # Apply encoding fixes
+            if text:
+                text = self.fix_encoding(text)
+            
+            return text
         except requests.RequestException as e:
             print(f"Failed to fetch page {url}: {e}")
             return None
+        except Exception as e:
+            print(f"Encoding error for {url}: {e}")
+            # Fallback: return raw text with UTF-8
+            try:
+                return response.content.decode('utf-8', errors='replace')
+            except:
+                return None
     
     def is_descriptive_text(self, text):
         """Check if text is a descriptive sentence rather than a menu item name"""
@@ -646,6 +718,377 @@ class RamenScraper:
             print(f"    ✓ Brand info extracted")
         
         print(f"\nBrand information scraping completed! Retrieved {len(brand_info)} items")
+    
+    def parse_product_detail(self, soup, url):
+        """Parse product detail page - extract product information"""
+        product_data = {
+            'url': url,
+            'title': '',
+            'content': '',
+            'section': 'Menu',
+            'menu_item': '',
+            'menu_category': '',
+            'ingredients': '',
+            'price': '',
+            'images': [],
+            'description': '',
+            'date': '',
+            'author': '',
+            'tags': ['afuri', 'shop'],
+            'categories': []
+        }
+        
+        title_elem = soup.find('h1') or soup.find('h2') or soup.find('title')
+        if title_elem:
+            title_text = title_elem.get_text().strip()
+            product_data['title'] = self.fix_encoding(title_text)
+            product_data['menu_item'] = product_data['title']
+        
+        price_elem = None
+        price_selectors = [
+            soup.find(class_=re.compile('price|Price|product.*price', re.I)),
+            soup.find('span', class_=re.compile('price', re.I)),
+            soup.find('div', class_=re.compile('price', re.I)),
+            soup.find('p', class_=re.compile('price', re.I)),
+            soup.find(string=re.compile(r'¥|JPY|\$|USD|EUR|GBP', re.I)),
+            soup.find(attrs={'data-price': True}),
+            soup.find(attrs={'itemprop': 'price'})
+        ]
+        
+        for selector in price_selectors:
+            if selector:
+                price_elem = selector
+                break
+        
+        if price_elem:
+            if hasattr(price_elem, 'get_text'):
+                price_text = price_elem.get_text().strip()
+            elif hasattr(price_elem, 'get'):
+                price_text = price_elem.get('data-price', '') or str(price_elem).strip()
+            else:
+                price_text = str(price_elem).strip()
+            
+            if price_text:
+                product_data['price'] = self.fix_encoding(price_text)
+        
+        desc_elem = soup.find(class_=re.compile('description|Description|product.*description', re.I)) or \
+                    soup.find('div', {'id': re.compile('description|Description', re.I)})
+        if desc_elem:
+            desc_text = desc_elem.get_text().strip()
+            product_data['description'] = self.fix_encoding(desc_text)
+            product_data['content'] = product_data['description']
+        
+        # Scrape images - get the second image
+        img_elems = soup.find_all('img', src=True)
+        valid_images = []
+        for img in img_elems:
+            img_src = img.get('src') or img.get('data-src')
+            if img_src:
+                if img_src.startswith('//'):
+                    img_src = 'https:' + img_src
+                elif img_src.startswith('/'):
+                    img_src = urljoin(url, img_src)
+                # Collect all valid images
+                if img_src and img_src not in valid_images:
+                    valid_images.append(img_src)
+        
+        # Get the second image if available, otherwise get the first one
+        if len(valid_images) >= 2:
+            product_data['images'].append(valid_images[1])
+        elif len(valid_images) == 1:
+            product_data['images'].append(valid_images[0])
+        
+        # Determine menu_category based on URL product ID prefix and title
+        title_lower = product_data['title'].lower()
+        desc_lower = product_data['description'].lower() if product_data['description'] else ''
+        combined_text = f"{title_lower} {desc_lower}".lower()
+        
+        # Extract product ID from URL (e.g., ra00050002006 from /products/ra00050002006)
+        product_id = None
+        url_match = re.search(r'/products/([^/?]+)', url)
+        if url_match:
+            product_id = url_match.group(1).lower()
+        
+        # Check for IPA drinks first (highest priority - override URL prefix)
+        is_ipa_drink = (
+            'yuzu hazy ipa' in title_lower or 'ipa 350ml' in title_lower or
+            ('ipa' in title_lower and ('370ml' in title_lower or '350ml' in title_lower))
+        )
+        
+        # Check for soup products
+        is_soup = (
+            'ramen soup' in title_lower or 
+            ('soup' in title_lower and 'ramen' in title_lower)
+        )
+        
+        # Priority order: IPA Drinks > URL Prefix (ra/me/tu) > tp prefix (Soup > Drinks > Side Dishes) > Title-based
+        if is_ipa_drink:
+            product_data['menu_category'] = 'Drinks'
+        elif product_id:
+            # Classify based on URL product ID prefix
+            if product_id.startswith('ra'):
+                product_data['menu_category'] = 'Ramen'
+            elif product_id.startswith('me'):
+                product_data['menu_category'] = 'Noodles'
+            elif product_id.startswith('tu'):
+                product_data['menu_category'] = 'Tsukemen'
+            elif product_id.startswith('tp'):
+                # For tp prefix: check Soup > Drinks > Side Dishes
+                if is_soup:
+                    product_data['menu_category'] = 'Soup'
+                else:
+                    # Check for drink products
+                    is_drink = (
+                        'yuzu juice' in title_lower or 'juice' in title_lower or
+                        ('drink' in title_lower or 'beer' in title_lower or 
+                         'sake' in title_lower or 'whisky' in title_lower or
+                         'beverage' in title_lower or 'craft beer' in title_lower or 
+                         'brewing' in title_lower)
+                    )
+                    if is_drink:
+                        product_data['menu_category'] = 'Drinks'
+                    else:
+                        product_data['menu_category'] = 'Side Dishes'
+            else:
+                # Unknown prefix, use title-based classification
+                if is_soup:
+                    product_data['menu_category'] = 'Soup'
+                else:
+                    is_drink = (
+                        'yuzu juice' in title_lower or 'juice' in title_lower or
+                        ('drink' in title_lower or 'beer' in title_lower or 
+                         'sake' in title_lower or 'whisky' in title_lower or
+                         'beverage' in title_lower or 'craft beer' in title_lower or 
+                         'brewing' in title_lower)
+                    )
+                    if is_drink:
+                        product_data['menu_category'] = 'Drinks'
+                    else:
+                        # Fallback to title-based classification
+                        if 'tsukemen' in title_lower or (title_lower and 'tsukemen' in combined_text and 'ramen' not in title_lower):
+                            product_data['menu_category'] = 'Tsukemen'
+                        elif 'ramen' in title_lower or (title_lower and 'ramen' in combined_text):
+                            product_data['menu_category'] = 'Ramen'
+                        elif 'noodle' in combined_text and 'ramen' not in combined_text and 'tsukemen' not in combined_text:
+                            product_data['menu_category'] = 'Noodles'
+                        elif 'topping' in combined_text or 'side' in combined_text or 'gohan' in combined_text:
+                            product_data['menu_category'] = 'Side Dishes'
+                        else:
+                            product_data['menu_category'] = 'Ramen'
+        else:
+            # No product ID found, use title-based classification
+            if 'tsukemen' in title_lower or (title_lower and 'tsukemen' in combined_text and 'ramen' not in title_lower):
+                product_data['menu_category'] = 'Tsukemen'
+            elif 'ramen' in title_lower or (title_lower and 'ramen' in combined_text):
+                product_data['menu_category'] = 'Ramen'
+            elif 'noodle' in combined_text and 'ramen' not in combined_text and 'tsukemen' not in combined_text:
+                product_data['menu_category'] = 'Noodles'
+            elif 'topping' in combined_text or 'side' in combined_text or 'gohan' in combined_text:
+                product_data['menu_category'] = 'Side Dishes'
+            else:
+                # Try to get category from page element as fallback
+                category_elem = soup.find(class_=re.compile('category|Category|collection', re.I))
+                if category_elem:
+                    category_text = category_elem.get_text().strip().lower()
+                    if 'ramen' in category_text:
+                        product_data['menu_category'] = 'Ramen'
+                    elif 'tsukemen' in category_text:
+                        product_data['menu_category'] = 'Tsukemen'
+                    elif 'noodle' in category_text:
+                        product_data['menu_category'] = 'Noodles'
+                    elif 'drink' in category_text:
+                        product_data['menu_category'] = 'Drinks'
+                    elif 'soup' in category_text:
+                        product_data['menu_category'] = 'Soup'
+                    elif 'topping' in category_text:
+                        product_data['menu_category'] = 'Side Dishes'
+                    else:
+                        product_data['menu_category'] = 'Ramen'
+                else:
+                    # Default to Ramen if no category found
+                    product_data['menu_category'] = 'Ramen'
+        
+        # Add tag based on menu_category
+        category_tag_map = {
+            'Ramen': 'ramen',
+            'Tsukemen': 'tsukemen',
+            'Noodles': 'noodles',
+            'Drinks': 'drink',
+            'Soup': 'soup',
+            'Side Dishes': 'side-dish'
+        }
+        category_tag = category_tag_map.get(product_data['menu_category'], '')
+        if category_tag and category_tag not in product_data['tags']:
+            product_data['tags'].append(category_tag)
+        
+        if product_data['description']:
+            ingredients_match = re.search(r'ingredients?[:\s]+([^\n]+)', product_data['description'], re.I)
+            if ingredients_match:
+                product_data['ingredients'] = ingredients_match.group(1).strip()
+        
+        return product_data
+    
+    def get_product_links(self, soup, base_url):
+        """Extract product links from product listing page"""
+        product_links = []
+        
+        link_elems = soup.find_all('a', href=True)
+        for link in link_elems:
+            href = link.get('href')
+            if href and '/products/' in href:
+                full_url = urljoin(base_url, href)
+                if full_url not in product_links:
+                    product_links.append(full_url)
+        
+        return product_links
+    
+    def get_all_product_links(self, shop_url="https://shop.afuri.com/en/collections/all"):
+        """Get all product links from all pages (handles pagination)"""
+        all_product_links = []
+        visited_urls = set()
+        page_url = shop_url
+        page_num = 1
+        
+        while page_url:
+            if page_url in visited_urls:
+                break
+            visited_urls.add(page_url)
+            
+            print(f"  Fetching page {page_num}...")
+            page_html = self.get_page(page_url)
+            if not page_html:
+                break
+            
+            soup = BeautifulSoup(page_html, 'html.parser')
+            product_links = self.get_product_links(soup, shop_url)
+            
+            new_links = [link for link in product_links if link not in all_product_links]
+            all_product_links.extend(new_links)
+            print(f"    Found {len(new_links)} new products (total: {len(all_product_links)})")
+            
+            next_page_url = None
+            next_link = soup.find('a', href=True, string=re.compile(r'next|Next|>|»', re.I))
+            if not next_link:
+                next_link = soup.find('a', {'aria-label': re.compile(r'next|Next', re.I)})
+            if not next_link:
+                pagination_links = soup.find_all('a', href=True, class_=re.compile(r'pagination|page', re.I))
+                for link in pagination_links:
+                    href = link.get('href', '')
+                    if 'page=' in href or '/page/' in href:
+                        page_match = re.search(r'page[=/](\d+)', href, re.I)
+                        if page_match:
+                            current_page_match = re.search(r'page[=/](\d+)', page_url, re.I)
+                            current_page = int(current_page_match.group(1)) if current_page_match else 1
+                            next_page = int(page_match.group(1))
+                            if next_page > current_page:
+                                next_page_url = urljoin(shop_url, href)
+                                break
+            
+            if not next_page_url:
+                if page_num == 1:
+                    if len(all_product_links) < 50:
+                        next_page_url = urljoin(shop_url, f"{shop_url.rstrip('/')}/page/2")
+                    else:
+                        parsed = urlparse(shop_url)
+                        query_params = parse_qs(parsed.query)
+                        query_params['page'] = ['2']
+                        new_query = urlencode(query_params, doseq=True)
+                        next_page_url = urlunparse((parsed.scheme, parsed.netloc, parsed.path, parsed.params, new_query, parsed.fragment))
+                else:
+                    if len(new_links) > 0:
+                        next_page_num = page_num + 1
+                        parsed = urlparse(shop_url)
+                        query_params = parse_qs(parsed.query)
+                        query_params['page'] = [str(next_page_num)]
+                        new_query = urlencode(query_params, doseq=True)
+                        next_page_url = urlunparse((parsed.scheme, parsed.netloc, parsed.path, parsed.params, new_query, parsed.fragment))
+                    else:
+                        break
+            
+            if next_page_url:
+                page_num_match = re.search(r'page[=/](\d+)', next_page_url, re.I)
+                if page_num_match:
+                    next_page_num = int(page_num_match.group(1))
+                    if next_page_num <= page_num:
+                        break
+                    page_num = next_page_num
+                else:
+                    page_num += 1
+                
+                page_url = next_page_url
+            else:
+                break
+        
+        return all_product_links
+    
+    def scrape_shop_products(self, shop_url="https://shop.afuri.com/en/collections/all"):
+        """Scrape AFURI online shop product details"""
+        print(f"Starting to scrape AFURI shop products: {shop_url}")
+        
+        print("\nExtracting product links from all pages...")
+        product_links = self.get_all_product_links(shop_url)
+        
+        if not product_links:
+            print("No product links found from pagination, trying single page method...")
+            shop_html = self.get_page(shop_url)
+            if shop_html:
+                soup = BeautifulSoup(shop_html, 'html.parser')
+                product_links = self.get_product_links(soup, shop_url)
+                
+                if not product_links:
+                    product_cards = soup.find_all(class_=re.compile('product|Product'))
+                    for card in product_cards:
+                        link = card.find('a', href=True)
+                        if link:
+                            href = link.get('href')
+                            if '/products/' in href:
+                                full_url = urljoin(shop_url, href)
+                                if full_url not in product_links:
+                                    product_links.append(full_url)
+        
+        print(f"\nFound {len(product_links)} total products")
+        
+        if len(product_links) == 0:
+            print("No products found, skipping shop scraping")
+            return
+        
+        print("\nScraping product details...")
+        scraped_count = 0
+        
+        def scrape_single_product(product_url):
+            """Scrape a single product page"""
+            product_html = self.get_page(product_url, delay=0.2)
+            if not product_html:
+                return None
+            
+            product_soup = BeautifulSoup(product_html, 'html.parser')
+            product_data = self.parse_product_detail(product_soup, product_url)
+            
+            if product_data['title']:
+                return product_data
+            return None
+        
+        # Use concurrent threads to speed up scraping
+        max_workers = 5
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            future_to_url = {executor.submit(scrape_single_product, url): url for url in product_links}
+            
+            completed = 0
+            for future in as_completed(future_to_url):
+                completed += 1
+                product_url = future_to_url[future]
+                try:
+                    product_data = future.result()
+                    if product_data:
+                        self.articles.append(product_data)
+                        scraped_count += 1
+                        print(f"  [{completed}/{len(product_links)}] ✓ {product_data['title'][:50]}")
+                    else:
+                        print(f"  [{completed}/{len(product_links)}] ✗ Failed: {product_url[:60]}")
+                except Exception as e:
+                    print(f"  [{completed}/{len(product_links)}] ✗ Error: {product_url[:60]} - {e}")
+        
+        print(f"\nShop product scraping completed! Retrieved {scraped_count} out of {len(product_links)} products")
     
     def save_data(self, filename='scraped_data.json'):
         """Save scraped data"""

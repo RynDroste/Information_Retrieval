@@ -163,6 +163,46 @@ class SolrConfigurator:
             print(f"Failed to add field type: {e}")
             return False
     
+    def add_field_if_not_exists(self, field_name, field_type='string', indexed=True, stored=True):
+        """Add a field to Solr schema if it doesn't exist"""
+        url = f"{self.solr_url}/schema/fields"
+        field_config = {
+            "add-field": {
+                "name": field_name,
+                "type": field_type,
+                "indexed": indexed,
+                "stored": stored
+            }
+        }
+        data = json.dumps(field_config).encode('utf-8')
+        
+        try:
+            req = urllib.request.Request(url, data=data,
+                                       headers={'Content-Type': 'application/json'})
+            with urllib.request.urlopen(req, timeout=10) as response:
+                result = json.loads(response.read().decode('utf-8'))
+                if result.get('responseHeader', {}).get('status') == 0:
+                    print(f"{field_name} field added successfully")
+                    return True
+                else:
+                    error_msg = result.get('error', {}).get('msg', '')
+                    if 'already exists' in error_msg or 'duplicate' in error_msg.lower():
+                        print(f"{field_name} field already exists")
+                        return True
+                    print(f"{field_name} field may already exist: {result}")
+                    return True
+        except urllib.error.HTTPError as e:
+            if e.code == 400:
+                error_body = e.read().decode('utf-8')
+                if 'already exists' in error_body or 'duplicate' in error_body.lower():
+                    print(f"{field_name} field already exists")
+                    return True
+            print(f"{field_name} field add failed: {e}")
+            return False
+        except Exception as e:
+            print(f"{field_name} field add failed: {e}")
+            return False
+    
     def update_fields(self):
         fields = ["title", "content", "menu_item", "ingredients"]
         success_count = 0
@@ -193,6 +233,12 @@ class SolrConfigurator:
                         print(f"{field} field update may have failed: {result}")
             except Exception as e:
                 print(f"{field} field update failed: {e}")
+        
+        # Add price field if it doesn't exist
+        self.add_field_if_not_exists('price', field_type='string', indexed=True, stored=True)
+        
+        # Add price_range field if it doesn't exist
+        self.add_field_if_not_exists('price_range', field_type='string', indexed=True, stored=True)
         
         return success_count > 0
     
@@ -245,11 +291,12 @@ class PipelineRunner:
         try:
             scraper = RamenScraper()
             
-            scraper.scrape_menu_page()
-            
+            # Scraping from https://afuri.com - only store and brand information
             scraper.scrape_store_information()
-            
             scraper.scrape_brand_info()
+            
+            # Also scraping from shop.afuri.com
+            scraper.scrape_shop_products()
             
             filepath = scraper.save_data()
             

@@ -1,7 +1,7 @@
 class ArticleSearch {
     constructor() {
         this.filteredArticles = [];
-        this.activeFilters = { section: null, category: null, tag: null };
+        this.activeFilters = { section: null, category: null, tag: null, priceRange: null };
         this.solrUrl = 'http://localhost:8888/solr/RamenProject/select';
         this.init();
     }
@@ -47,6 +47,10 @@ class ArticleSearch {
         }
         if (this.activeFilters.tag) {
             queryParts.push(`tags:"${this.activeFilters.tag.replace(/"/g, '\\"')}"`);
+        }
+        if (this.activeFilters.priceRange) {
+            const val = this.activeFilters.priceRange.trim().replace(/[+\-&|!(){}[\]^"~*?:\\]/g, '\\$&');
+            queryParts.push(`price_range:"${val}"`);
         }
         const searchQuery = searchText ? searchText.replace(/[+\-&|!(){}[\]^"~*?:\\]/g, '\\$&') : '';
         if (queryParts.length === 0) return searchQuery || '*:*';
@@ -106,39 +110,140 @@ class ArticleSearch {
             ingredients: this.getFieldValue(doc.ingredients),
             store_name: this.getFieldValue(doc.store_name),
             date: this.getFieldValue(doc.date),
+            price: this.getFieldValue(doc.price),
+            price_range: this.getFieldValue(doc.price_range),
             tags: this.getFieldArray(doc.tags)
         }));
     }
 
-    async searchSolr(query) {
+    /**
+     * Universal search algorithm that intelligently combines multiple keywords
+     * Supports any combination of brand, category, type, and other keywords
+     */
+    buildBoostQuery(query) {
         const queryLower = query.toLowerCase().trim();
-        let bq = '';
+        const words = queryLower.split(/\s+/).filter(w => w.length > 0);
         
-        if (queryLower === 'afuri' || queryLower.includes('afuri')) {
-            bq = 'section:"Brand Information"^7.0 section:"Store Information"^6.5';
-        } else {
-            const categoryBoosts = {
-                'store': 'section:"Store Information"^5.0',
-                'drink': 'menu_category:"Drinks"^5.0',
-                'drinks': 'menu_category:"Drinks"^5.0',
-                'ramen': 'menu_category:"Ramen"^5.0',
-                'noodle': 'menu_category:"Noodles"^5.0',
-                'noodles': 'menu_category:"Noodles"^5.0',
-                'side': 'menu_category:"Side Dishes"^5.0',
-                'side dish': 'menu_category:"Side Dishes"^5.0',
-                'side dishes': 'menu_category:"Side Dishes"^5.0',
-                'tsukemen': 'menu_category:"Tsukemen"^5.0',
-                'chi-yu': 'menu_category:"Chi-yu"^5.0',
-                'chiyu': 'menu_category:"Chi-yu"^5.0'
-            };
-            
-            for (const [keyword, boost] of Object.entries(categoryBoosts)) {
-                if (queryLower === keyword || queryLower.includes(keyword)) {
-                    bq = boost;
+        // Define keyword patterns with their types and boost rules
+        const keywordPatterns = {
+            // Brand keywords
+            brand: {
+                keywords: ['afuri'],
+                boost: {
+                    solo: { 'section:"Brand Information"': 7.0, 'section:"Store Information"': 6.5 },
+                    combined: { 'section:"Brand Information"': 5.5, 'section:"Store Information"': 5.0 }
+                }
+            },
+            // Category keywords (menu categories)
+            category: {
+                keywords: [
+                    { patterns: ['drink', 'drinks', 'beverage', 'beverages'], target: 'menu_category:"Drinks"' },
+                    { patterns: ['ramen'], target: 'menu_category:"Ramen"' },
+                    { patterns: ['noodle', 'noodles'], target: 'menu_category:"Noodles"' },
+                    { patterns: ['tsukemen'], target: 'menu_category:"Tsukemen"' },
+                    { patterns: ['side', 'side dish', 'side dishes'], target: 'menu_category:"Side Dishes"' },
+                    { patterns: ['soup'], target: 'menu_category:"Soup"' },
+                    { patterns: ['chi-yu', 'chiyu'], target: 'menu_category:"Chi-yu"' }
+                ],
+                boost: {
+                    solo: 7.0,
+                    combined: 7.0  // Categories always get high priority
+                }
+            },
+            // Type keywords (section types)
+            type: {
+                keywords: [
+                    { patterns: ['store', 'stores', 'location', 'locations', 'shop', 'shops'], target: 'section:"Store Information"' },
+                    { patterns: ['brand', 'brands', 'company'], target: 'section:"Brand Information"' },
+                    { patterns: ['menu', 'menus', 'item', 'items', 'product', 'products'], target: 'section:"Menu"' }
+                ],
+                boost: {
+                    solo: 6.0,
+                    combined: 5.0
+                }
+            }
+        };
+        
+        // Detect all matched keywords by type
+        const detected = {
+            brand: null,
+            category: [],
+            type: []
+        };
+        
+        // Check brand keywords
+        for (const brandKeyword of keywordPatterns.brand.keywords) {
+            if (queryLower.includes(brandKeyword)) {
+                detected.brand = brandKeyword;
+                break;
+            }
+        }
+        
+        // Check category keywords (check multi-word patterns first, then single words)
+        for (const categoryDef of keywordPatterns.category.keywords) {
+            for (const pattern of categoryDef.patterns) {
+                // Check for multi-word patterns
+                if (pattern.includes(' ')) {
+                    if (queryLower.includes(pattern)) {
+                        detected.category.push({ target: categoryDef.target, pattern });
+                        break;
+                    }
+                } else {
+                    // Check for single word patterns (as whole word or part of word)
+                    if (words.includes(pattern) || queryLower.includes(pattern)) {
+                        detected.category.push({ target: categoryDef.target, pattern });
+                        break;
+                    }
+                }
+            }
+        }
+        
+        // Check type keywords
+        for (const typeDef of keywordPatterns.type.keywords) {
+            for (const pattern of typeDef.patterns) {
+                if (words.includes(pattern) || queryLower.includes(pattern)) {
+                    detected.type.push({ target: typeDef.target, pattern });
                     break;
                 }
             }
         }
+        
+        // Build boost query based on detected keywords
+        const bqParts = [];
+        const hasMultipleTypes = (detected.category.length > 0 ? 1 : 0) + 
+                                 (detected.type.length > 0 ? 1 : 0) + 
+                                 (detected.brand ? 1 : 0) > 1;
+        
+        // Priority 1: Category keywords (highest priority when present)
+        if (detected.category.length > 0) {
+            const boost = hasMultipleTypes ? keywordPatterns.category.boost.combined : keywordPatterns.category.boost.solo;
+            detected.category.forEach(cat => {
+                bqParts.push(`${cat.target}^${boost}`);
+            });
+        }
+        
+        // Priority 2: Brand keywords
+        if (detected.brand) {
+            const boostConfig = hasMultipleTypes ? keywordPatterns.brand.boost.combined : keywordPatterns.brand.boost.solo;
+            Object.entries(boostConfig).forEach(([target, boost]) => {
+                bqParts.push(`${target}^${boost}`);
+            });
+        }
+        
+        // Priority 3: Type keywords (lowest priority)
+        if (detected.type.length > 0) {
+            const boost = hasMultipleTypes ? keywordPatterns.type.boost.combined : keywordPatterns.type.boost.solo;
+            detected.type.forEach(type => {
+                bqParts.push(`${type.target}^${boost}`);
+            });
+        }
+        
+        return bqParts.length > 0 ? bqParts.join(' ') : '';
+    }
+
+    async searchSolr(query) {
+        const queryLower = query.toLowerCase().trim();
+        const bq = this.buildBoostQuery(query);
         
         const params = new URLSearchParams({
             q: query,
@@ -235,7 +340,9 @@ class ArticleSearch {
     renderTags(tags, filterType) {
         return tags.map(tag => {
             const isActive = this.activeFilters[filterType] === tag;
-            return `<span class="tag-badge clickable-tag ${isActive ? 'active' : ''}" 
+            const isOthers = tag.toLowerCase() === 'others';
+            const tagClass = `tag-badge clickable-tag ${isOthers ? 'tag-others' : ''} ${isActive ? 'active' : ''}`;
+            return `<span class="${tagClass}" 
                     data-filter-type="${filterType}" data-filter-value="${this.escapeHtml(tag)}" 
                     title="Click to filter #${this.escapeHtml(tag)}">#${this.escapeHtml(tag)}</span>`;
         }).join('');
@@ -289,8 +396,13 @@ class ArticleSearch {
                 }
             }
 
+            const priceDisplay = article.price ? `<span class="product-price">${this.escapeHtml(article.price)}</span>` : '';
+            
             return `<div class="article-card">
-                <h2><a href="${article.url}" target="_blank">${this.highlightText(article.title, queryWords)}</a></h2>
+                <div class="article-header">
+                    <h2><a href="${article.url}" target="_blank">${this.highlightText(article.title, queryWords)}</a></h2>
+                    ${priceDisplay}
+                </div>
                 ${categoryLine}${tagsLine}${ingredientsLine}
                 <div class="article-meta">
                     ${article.menu_item && article.menu_item !== article.title ? `<span>🍜 ${article.menu_item}</span>` : ''}
@@ -321,7 +433,7 @@ class ArticleSearch {
     }
     
     clearAllFilters() {
-        this.activeFilters = { section: null, category: null, tag: null };
+        this.activeFilters = { section: null, category: null, tag: null, priceRange: null };
         this.updateActiveFiltersDisplay();
         this.performSearchWithFilters();
     }
@@ -329,7 +441,7 @@ class ArticleSearch {
     updateActiveFiltersDisplay() {
         const activeFiltersDiv = document.getElementById('activeFilters');
         const filterTagsDiv = document.getElementById('filterTags');
-        const hasFilters = this.activeFilters.section || this.activeFilters.category || this.activeFilters.tag;
+        const hasFilters = this.activeFilters.section || this.activeFilters.category || this.activeFilters.tag || this.activeFilters.priceRange;
         
         if (!hasFilters) {
             activeFiltersDiv.style.display = 'none';
@@ -339,12 +451,21 @@ class ArticleSearch {
         activeFiltersDiv.style.display = 'flex';
         filterTagsDiv.innerHTML = '';
         
-        ['section', 'category', 'tag'].forEach(type => {
+        ['section', 'category', 'tag', 'priceRange'].forEach(type => {
             if (this.activeFilters[type]) {
                 const tag = document.createElement('span');
                 tag.className = 'filter-tag';
-                tag.textContent = type === 'tag' ? `#${this.activeFilters[type]}` : 
-                    (type === 'section' ? this.getSectionLabel(this.activeFilters[type]) : this.activeFilters[type]);
+                let displayText = '';
+                if (type === 'tag') {
+                    displayText = `#${this.activeFilters[type]}`;
+                } else if (type === 'section') {
+                    displayText = this.getSectionLabel(this.activeFilters[type]);
+                } else if (type === 'priceRange') {
+                    displayText = `💰 ${this.activeFilters[type]}`;
+                } else {
+                    displayText = this.activeFilters[type];
+                }
+                tag.textContent = displayText;
                 tag.addEventListener('click', () => {
                     this.activeFilters[type] = null;
                     this.updateActiveFiltersDisplay();
@@ -418,12 +539,17 @@ class ArticleSearch {
     async loadAllTags() {
         try {
             const articles = await this.getAllArticles();
-            const categories = new Set(), storeTags = new Set(), sections = new Set();
+            const categories = new Set(), storeTags = new Set(), sections = new Set(), priceRanges = new Set();
             
             articles.forEach(article => {
                 if (article.menu_category) categories.add(article.menu_category);
-                if (article.tags?.length) article.tags.forEach(tag => storeTags.add(tag));
+                // Only collect tags from Store Information and Brand Information sections
+                if (article.tags?.length && 
+                    (article.section === 'Store Information' || article.section === 'Brand Information')) {
+                    article.tags.forEach(tag => storeTags.add(tag));
+                }
                 if (article.section) sections.add(article.section);
+                if (article.price_range) priceRanges.add(article.price_range);
             });
             
             this.displayTagGroup('categoryTagList', Array.from(categories).sort(), 'category', 'category-badge');
@@ -435,6 +561,18 @@ class ArticleSearch {
                 label: sectionLabels[s] || s
             })).sort((a, b) => a.label.localeCompare(b.label));
             this.displayTagGroup('sectionTagList', sectionArray, 'section', 'tag-badge', true);
+            
+            // Sort price ranges in logical order
+            const priceRangeOrder = ['< ¥1,000', '¥1,000 - ¥2,000', '¥2,000 - ¥3,000', '¥3,000 - ¥5,000', '¥5,000 - ¥10,000', '> ¥10,000'];
+            const sortedPriceRanges = Array.from(priceRanges).sort((a, b) => {
+                const indexA = priceRangeOrder.indexOf(a);
+                const indexB = priceRangeOrder.indexOf(b);
+                if (indexA === -1 && indexB === -1) return a.localeCompare(b);
+                if (indexA === -1) return 1;
+                if (indexB === -1) return -1;
+                return indexA - indexB;
+            });
+            this.displayTagGroup('priceTagList', sortedPriceRanges, 'priceRange', 'tag-badge');
         } catch (error) {
             console.error('Error loading tags:', error);
         }
@@ -450,7 +588,8 @@ class ArticleSearch {
                 return data.response.docs.map(doc => ({
                     menu_category: this.getFieldValue(doc.menu_category),
                     tags: this.getFieldArray(doc.tags),
-                    section: this.getFieldValue(doc.section)
+                    section: this.getFieldValue(doc.section),
+                    price_range: this.getFieldValue(doc.price_range)
                 }));
             }
             return [];
@@ -471,7 +610,8 @@ class ArticleSearch {
             const isActive = this.activeFilters[filterType] === value;
             
             const tag = document.createElement('span');
-            tag.className = `${badgeClass} clickable-tag ${isActive ? 'active' : ''}`;
+            const isOthers = filterType === 'tag' && value.toLowerCase() === 'others';
+            tag.className = `${badgeClass} clickable-tag ${isOthers ? 'tag-others' : ''} ${isActive ? 'active' : ''}`;
             tag.dataset.filterType = filterType;
             tag.dataset.filterValue = value;
             tag.textContent = filterType === 'tag' ? `#${label}` : label;

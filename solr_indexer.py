@@ -94,6 +94,12 @@ class SolrIndexer:
         if 'tags' in article and article['tags']:
             doc['tags'] = article['tags']
         
+        if 'price' in article and article['price']:
+            doc['price'] = article['price']
+        
+        if 'price_range' in article and article['price_range']:
+            doc['price_range'] = article['price_range']
+        
         return doc
     
     def index_articles(self, clear_existing=True):
