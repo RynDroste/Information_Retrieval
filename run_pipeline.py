@@ -206,7 +206,7 @@ class SolrConfigurator:
             return False
     
     def update_fields(self):
-        fields = ["title", "content", "menu_item", "ingredients"]
+        fields = ["title", "content", "menu_item", "introduction"]
         success_count = 0
         
         for field in fields:
@@ -300,6 +300,9 @@ class PipelineRunner:
             
             # Also scraping from shop.afuri.com
             scraper.scrape_shop_products()
+            
+            # Scraping from https://ec-ippudo.com/shop/default.aspx
+            scraper.scrape_ippudo_products()
             
             filepath = scraper.save_data()
             

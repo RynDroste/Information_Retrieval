@@ -207,7 +207,7 @@ class ArticleSearch {
             section: this.getFieldValue(doc.section),
             menu_item: this.getFieldValue(doc.menu_item),
             menu_category: this.getFieldValue(doc.menu_category),
-            ingredients: this.getFieldValue(doc.ingredients),
+            introduction: this.getFieldValue(doc.introduction),
             store_name: this.getFieldValue(doc.store_name),
             date: this.getFieldValue(doc.date),
             price: this.getFieldValue(doc.price),
@@ -371,7 +371,7 @@ class ArticleSearch {
         const params = new URLSearchParams({
             q: query,
             defType: 'edismax',
-            qf: 'title^2.0 content^1.5 menu_item^2.5 ingredients^1.0 menu_category^2.0 store_name^3.0',
+            qf: 'title^2.0 content^1.5 menu_item^2.5 introduction^1.0 menu_category^2.0 store_name^3.0',
             pf: 'title^5.0 menu_item^5.0 store_name^6.0',
             ps: '2',
             mm: '2<75% 3<50%',
@@ -691,14 +691,14 @@ class ArticleSearch {
         const queryWords = query ? query.split(/\s+/).filter(w => w.length > 0) : [];
 
         results.innerHTML = this.filteredArticles.map(article => {
-            const { section, menuCategory, tags, ingredients } = {
+            const { section, menuCategory, tags, introduction } = {
                 section: article.section || '',
                 menuCategory: article.menu_category || '',
                 tags: article.tags || [],
-                ingredients: article.ingredients || ''
+                introduction: article.introduction || ''
             };
 
-            let categoryLine = '', tagsLine = '', ingredientsLine = '';
+            let categoryLine = '', tagsLine = '', introductionLine = '';
             
             if (section === 'Menu' && menuCategory) {
                 const isSectionActive = this.activeFilters.section === 'Menu';
@@ -710,7 +710,7 @@ class ArticleSearch {
                           data-filter-type="category" data-filter-value="${this.escapeHtml(menuCategory)}">${this.escapeHtml(menuCategory)}</span>
                 </div>`;
                 if (tags.length > 0) tagsLine = `<div class="tags-line">${this.renderTags(tags, 'tag')}</div>`;
-                if (ingredients) ingredientsLine = `<div class="ingredients-line"><span class="section-label">Ingredients:</span><span class="ingredients-text">${this.escapeHtml(ingredients)}</span></div>`;
+                if (introduction) introductionLine = `<div class="ingredients-line"><span class="section-label">Introduction:</span><span class="ingredients-text">${this.escapeHtml(introduction)}</span></div>`;
             } else if (section === 'Store Information' || section === 'Brand Information') {
                 const label = section === 'Store Information' ? 'Store' : 'Brand';
                 const badgeClass = section === 'Store Information' ? 'tag-store' : 'tag-brand';
@@ -734,7 +734,7 @@ class ArticleSearch {
                     <h2><a href="${detailLink}">${this.highlightText(article.title, queryWords)}</a></h2>
                     ${priceDisplay}
                 </div>
-                ${categoryLine}${tagsLine}${ingredientsLine}
+                ${categoryLine}${tagsLine}${introductionLine}
                 <div class="article-meta">
                     ${article.menu_item && article.menu_item !== article.title ? `<span>🍜 ${article.menu_item}</span>` : ''}
                     ${article.store_name ? `<span>📍 ${article.store_name}</span>` : ''}
@@ -879,12 +879,24 @@ class ArticleSearch {
                     (article.section === 'Store Information' || article.section === 'Brand Information')) {
                     article.tags.forEach(tag => storeTags.add(tag));
                 }
+                // Also collect ippudo tag from Menu section
+                if (article.tags?.length && article.section === 'Menu' && article.tags.includes('ippudo')) {
+                    storeTags.add('ippudo');
+                }
                 if (article.section) sections.add(article.section);
                 if (article.price_range) priceRanges.add(article.price_range);
             });
             
+            // Manually add ippudo tag to store tags (ensure it's always present)
+            storeTags.add('ippudo');
+            
+            // Debug: log store tags
+            const sortedStoreTags = Array.from(storeTags).sort();
+            console.log('Store tags collected:', sortedStoreTags);
+            console.log('storeTagList container exists:', document.getElementById('storeTagList') !== null);
+            
             this.displayTagGroup('categoryTagList', Array.from(categories).sort(), 'category', 'category-badge');
-            this.displayTagGroup('storeTagList', Array.from(storeTags).sort(), 'tag', 'tag-badge');
+            this.displayTagGroup('storeTagList', sortedStoreTags, 'tag', 'tag-badge');
             
             const sectionLabels = { 'Menu': 'Menu', 'Store Information': 'Store', 'Brand Information': 'Brand' };
             const sectionArray = Array.from(sections).map(s => ({
@@ -964,3 +976,4 @@ class ArticleSearch {
 }
 
 document.addEventListener('DOMContentLoaded', () => new ArticleSearch());
+

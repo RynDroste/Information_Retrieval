@@ -69,7 +69,7 @@ class ArticleDetail {
             section: this.getFieldValue(doc.section),
             menu_item: this.getFieldValue(doc.menu_item),
             menu_category: this.getFieldValue(doc.menu_category),
-            ingredients: this.getFieldValue(doc.ingredients),
+            introduction: this.getFieldValue(doc.introduction),
             store_name: this.getFieldValue(doc.store_name),
             date: this.getFieldValue(doc.date),
             price: this.getFieldValue(doc.price),
@@ -138,11 +138,11 @@ class ArticleDetail {
         const sectionsDiv = document.getElementById('detailSections');
         const sections = [];
         
-        if (this.article.ingredients) {
+        if (this.article.introduction) {
             sections.push(`
                 <div class="detail-section">
-                    <div class="detail-section-title">Ingredients</div>
-                    <div class="detail-content">${this.escapeHtml(this.article.ingredients)}</div>
+                    <div class="detail-section-title">Introduction</div>
+                    <div class="detail-content">${this.escapeHtml(this.article.introduction)}</div>
                 </div>
             `);
         }

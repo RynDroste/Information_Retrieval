@@ -1,0 +1,55 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[margin=0.8in,top=0.6in]{geometry}
+\usepackage{amsmath}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage{fancyhdr}
+\usepackage{enumitem}
+
+\setlength{\headheight}{13.6pt}
+\setlength{\parskip}{0.3em}
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[C]{AFURI Menu Information Retrieval System - Progress Report}
+\fancyfoot[C]{\thepage}
+
+\title{Information Retrieval\\Academic Year 2025-2026\\\textbf{Course Project Progress Report}\\Xuanlin Chen}
+\author{}
+\date{}
+
+\begin{document}
+\maketitle
+\vspace{-1.5em}
+
+\section{Design}
+
+The system employs a hybrid search architecture that combines traditional keyword-based search Apache Solr with deep learning-based semantic search LaBSE. The hybrid approach balances retrieval speed with accuracy, ensuring both precise matches and semantically relevant results are returned.
+
+The system indexes multiple fields including title, menu item, content, introduction, menu category, and store name. Multi-field indexing enables flexible multi-dimensional search, allowing users to query from different perspectives. Field weighting prioritizes store names and menu items over general titles, reflecting business logic where specific menu items and store locations are more important for user queries.
+
+\section{Search Engine Implementation}
+
+\subsection{Solr Keyword Search Engine}
+Apache Solr serves as the core keyword search engine with the following configuration:
+\begin{itemize}[leftmargin=*,nosep]
+    \item \textbf{Text Analysis Pipeline}: Standard tokenization, lowercasing, stemming, synonym expansion, edge n-gram filtering for prefix matching, and stop word removal
+    \item \textbf{Query Parser}: Extended Dismax parser supporting multi-field search, phrase matching, and boost queries
+\end{itemize}
+
+\subsection{LaBSE Semantic Search Engine}
+The system integrates LaBSE model for semantic understanding:
+\begin{itemize}[leftmargin=*,nosep]
+    \item \textbf{Embedding Generation}: Maps queries and documents into a 768-dimensional semantic space
+    \item \textbf{Similarity Computation}: Uses cosine similarity to measure semantic relatedness between query and document embeddings
+\end{itemize}
+
+\section{Search Interface Implementation}
+
+\subsection{Query Processing and Execution}
+The search interface processes user queries through multiple stages:
+\begin{itemize}[leftmargin=*,nosep]
+    \item \textbf{Query Input}: Accepts natural language queries from users
+    \item \textbf{Parallel Execution}: Simultaneously executes keyword search via Solr and semantic search via LaBSE API
+\end{itemize}
+
+\end{document}

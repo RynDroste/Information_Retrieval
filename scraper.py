@@ -59,7 +59,7 @@ class RamenScraper:
         
         return text
     
-    def get_page(self, url, delay=0.3):
+    def get_page(self, url, delay=0.6):
         """Fetch webpage content"""
         try:
             print(f"Scraping: {url}")
@@ -384,20 +384,20 @@ class RamenScraper:
                         # Add AFURI keyword to content and tags
                         content_with_afuri = f"AFURI {item_content}" if "AFURI" not in item_content.upper() else item_content
                         
-                        # Extract ingredients from the relevant content
-                        ingredients = ''
+                        # Extract introduction from the relevant content
+                        introduction = ''
                         # Use relevant_content if available, otherwise use text_after_item
                         content_to_search = relevant_content if relevant_content else text_after_item
                         if content_to_search:
                             lines = content_to_search.split('\n')
                             for line in reversed(lines):
                                 line = line.strip()
-                                # Check if line contains common ingredient patterns (comma-separated, lowercase/English)
+                                # Check if line contains common introduction patterns (comma-separated, lowercase/English)
                                 if ',' in line and len(line) > 20:
-                                    # Check if it looks like ingredients (contains common food words)
-                                    ingredient_keywords = ['broth', 'chashu', 'nori', 'egg', 'yuzu', 'menma', 'mizuna', 'dashi', 'shoyu', 'chicken', 'rice', 'pork', 'beef', 'seaweed', 'ginger', 'negi', 'onion']
-                                    if any(keyword in line.lower() for keyword in ingredient_keywords):
-                                        ingredients = line
+                                    # Check if it looks like introduction (contains common food words)
+                                    introduction_keywords = ['broth', 'chashu', 'nori', 'egg', 'yuzu', 'menma', 'mizuna', 'dashi', 'shoyu', 'chicken', 'rice', 'pork', 'beef', 'seaweed', 'ginger', 'negi', 'onion']
+                                    if any(keyword in line.lower() for keyword in introduction_keywords):
+                                        introduction = line
                                         break
                         
                         menu_data = {
@@ -407,7 +407,7 @@ class RamenScraper:
                             'section': 'Menu',
                             'menu_item': item_name,
                             'menu_category': item_category,
-                            'ingredients': ingredients,
+                            'introduction': introduction,
                             'date': '',
                             'author': '',
                             'tags': ['afuri'],
@@ -728,7 +728,7 @@ class RamenScraper:
             'section': 'Menu',
             'menu_item': '',
             'menu_category': '',
-            'ingredients': '',
+            'introduction': '',
             'price': '',
             'images': [],
             'description': '',
@@ -924,9 +924,9 @@ class RamenScraper:
             product_data['tags'].append(category_tag)
         
         if product_data['description']:
-            ingredients_match = re.search(r'ingredients?[:\s]+([^\n]+)', product_data['description'], re.I)
-            if ingredients_match:
-                product_data['ingredients'] = ingredients_match.group(1).strip()
+            introduction_match = re.search(r'ingredients?[:\s]+([^\n]+)', product_data['description'], re.I)
+            if introduction_match:
+                product_data['introduction'] = introduction_match.group(1).strip()
         
         return product_data
     
@@ -1059,7 +1059,7 @@ class RamenScraper:
         
         def scrape_single_product(product_url):
             """Scrape a single product page"""
-            product_html = self.get_page(product_url, delay=0.2)
+            product_html = self.get_page(product_url, delay=0.6)
             if not product_html:
                 return None
             
@@ -1071,7 +1071,7 @@ class RamenScraper:
             return None
         
         # Use concurrent threads to speed up scraping
-        max_workers = 5
+        max_workers = 3
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
             future_to_url = {executor.submit(scrape_single_product, url): url for url in product_links}
             
@@ -1091,6 +1091,325 @@ class RamenScraper:
                     print(f"  [{completed}/{len(product_links)}] ✗ Error: {product_url[:60]} - {e}")
         
         print(f"\nShop product scraping completed! Retrieved {scraped_count} out of {len(product_links)} products")
+    
+    def parse_ippudo_product_list(self, soup, url):
+        """Parse Ippudo product listing page"""
+        products = []
+        seen_titles = set()  # Track seen titles to avoid duplicates
+        
+        # Find product items - look for common product container patterns
+        product_containers = soup.find_all(['div', 'li', 'article'], class_=re.compile('product|item|card', re.I))
+        
+        # If no specific product containers found, try to find links with product patterns
+        if not product_containers:
+            # Look for product links
+            product_links = soup.find_all('a', href=re.compile(r'/shop/|/product/|/item/', re.I))
+            for link in product_links:
+                href = link.get('href', '')
+                if href and ('/shop/' in href or '/product/' in href):
+                    # Skip navigation links
+                    if any(nav in href for nav in ['/c/', '/r/', 'TOP', 'top', 'default']):
+                        continue
+                    # Try to extract product info from the link area
+                    parent = link.find_parent(['div', 'li', 'article'])
+                    if parent:
+                        product_containers.append(parent)
+        
+        # Also try to find by text patterns (product names, prices)
+        if not product_containers:
+            # Look for elements containing price patterns
+            price_elements = soup.find_all(string=re.compile(r'¥[\d,]+|￥[\d,]+|[\d,]+円', re.I))
+            for price_elem in price_elements:
+                parent = price_elem.find_parent(['div', 'li', 'article', 'tr'])
+                if parent and parent not in product_containers:
+                    product_containers.append(parent)
+        
+        for container in product_containers:
+            try:
+                # Extract product name/title
+                title_elem = container.find(['h1', 'h2', 'h3', 'h4', 'a'], class_=re.compile('title|name|product', re.I))
+                if not title_elem:
+                    title_elem = container.find('a', href=re.compile(r'/shop/|/product/', re.I))
+                if not title_elem:
+                    # Try to find any heading or strong text
+                    title_elem = container.find(['h1', 'h2', 'h3', 'h4', 'strong', 'b'])
+                
+                title = ''
+                if title_elem:
+                    title = title_elem.get_text().strip()
+                    # Clean up title
+                    title = re.sub(r'\s+', ' ', title)
+                
+                # Skip if no title found
+                if not title or len(title) < 5:
+                    continue
+                
+                # Skip navigation links and non-product items
+                skip_keywords = ['TOPへ', 'TOP', 'top', '商品カテゴリー', '価格から選ぶ', '用途で選ぶ', 
+                                '商品検索', 'ログイン', 'お気に入り', 'カート', 'ホーム', '新規会員登録',
+                                'お買い物ガイド', 'よくある質問', 'お問い合わせ', '一風堂', '渡辺製麺', '因幡うどん',
+                                'FEATURES', 'RANKING', 'NEW ARRIVALS', 'NEWS', 'Recipe Collection']
+                if any(keyword in title for keyword in skip_keywords):
+                    continue
+                
+                # Skip if already seen
+                if title in seen_titles:
+                    continue
+                seen_titles.add(title)
+                
+                # Extract price
+                price = ''
+                price_elem = container.find(string=re.compile(r'¥[\d,]+|￥[\d,]+|[\d,]+円', re.I))
+                if price_elem:
+                    price_text = price_elem.strip()
+                    # Extract price pattern
+                    price_match = re.search(r'[¥￥]?([\d,]+)', price_text)
+                    if price_match:
+                        price = price_match.group(1).replace(',', '')
+                
+                # Extract description
+                desc = ''
+                desc_elem = container.find(['p', 'div'], class_=re.compile('desc|description|summary', re.I))
+                if desc_elem:
+                    desc = desc_elem.get_text().strip()
+                else:
+                    # Try to get all text and use as description
+                    all_text = container.get_text()
+                    lines = [line.strip() for line in all_text.split('\n') if line.strip()]
+                    # Skip title and price lines
+                    desc_lines = []
+                    for line in lines:
+                        if line != title and not re.search(r'[¥￥]?[\d,]+', line):
+                            if len(line) > 10:  # Only meaningful descriptions
+                                desc_lines.append(line)
+                    desc = ' '.join(desc_lines[:3])  # Take first 3 description lines
+                
+                # Extract product URL
+                product_url = url
+                link_elem = container.find('a', href=True)
+                if link_elem:
+                    href = link_elem.get('href')
+                    if href and '/shop/' in href:
+                        product_url = urljoin(url, href)
+                
+                # Extract image
+                image_url = ''
+                img_elem = container.find('img', src=True)
+                if img_elem:
+                    img_src = img_elem.get('src') or img_elem.get('data-src')
+                    if img_src:
+                        if img_src.startswith('//'):
+                            image_url = 'https:' + img_src
+                        elif img_src.startswith('/'):
+                            image_url = urljoin(url, img_src)
+                        else:
+                            image_url = urljoin(url, img_src)
+                
+                # Determine category
+                category = 'Ramen'
+                title_lower = title.lower()
+                if 'ビール' in title or 'beer' in title_lower or 'ale' in title_lower:
+                    category = 'Drinks'
+                elif 'ソース' in title or 'sauce' in title_lower or 'ドレッシング' in title or 'ダシ' in title:
+                    category = 'Sauce'
+                elif '丼' in title or 'don' in title_lower:
+                    category = 'Side Dishes'
+                elif 'セット' in title or 'set' in title_lower or 'ギフト' in title or 'gift' in title_lower:
+                    category = 'Gift Set'
+                elif '冷凍' in title or 'frozen' in title_lower:
+                    category = 'Frozen'
+                
+                # Create product data
+                product_data = {
+                    'url': product_url,
+                    'title': self.fix_encoding(title),
+                    'content': self.fix_encoding(f"{title}\n{desc}"),
+                    'section': 'Menu',
+                    'menu_item': self.fix_encoding(title),
+                    'menu_category': category,
+                    'price': price,
+                    'description': self.fix_encoding(desc),
+                    'images': [image_url] if image_url else [],
+                    'date': '',
+                    'author': '',
+                    'tags': ['ippudo', '一風堂'],
+                    'categories': []
+                }
+                
+                products.append(product_data)
+                
+            except Exception as e:
+                print(f"Error parsing product container: {e}")
+                continue
+        
+        return products
+    
+    def get_ippudo_product_links(self, soup, base_url):
+        """Extract product detail page links from Ippudo listing page"""
+        product_links = []
+        links = soup.find_all('a', href=True)
+        
+        for link in links:
+            href = link.get('href', '')
+            # Look for product detail links - Ippudo uses /shop/r/ for product pages
+            if href and ('/shop/r/' in href or '/shop/product/' in href or '/shop/item/' in href):
+                # Skip navigation and category links
+                if any(skip in href for skip in ['/c/', '/default', 'TOP', 'top']):
+                    continue
+                full_url = urljoin(base_url, href)
+                if full_url not in product_links:
+                    product_links.append(full_url)
+        
+        return product_links
+    
+    def parse_ippudo_product_detail(self, soup, url):
+        """Parse Ippudo product detail page"""
+        product_data = {
+            'url': url,
+            'title': '',
+            'content': '',
+            'section': 'Menu',
+            'menu_item': '',
+            'menu_category': '',
+            'price': '',
+            'description': '',
+            'images': [],
+            'date': '',
+            'author': '',
+            'tags': ['ippudo', '一風堂'],
+            'categories': []
+        }
+        
+        # Extract description/content first
+        desc_elem = soup.find(['p', 'div'], class_=re.compile('desc|description|summary|detail', re.I))
+        if desc_elem:
+            desc_text = desc_elem.get_text().strip()
+            product_data['description'] = self.fix_encoding(desc_text)
+            product_data['content'] = product_data['description']
+        
+        # Extract title
+        title_elem = soup.find('h1') or soup.find('h2') or soup.find('title')
+        if title_elem:
+            title_text = title_elem.get_text().strip()
+            product_data['title'] = self.fix_encoding(title_text)
+        
+        # If title is "SHOPPING GUIDE" or similar navigation text, use first line of content as title
+        title_lower = product_data['title'].lower()
+        if ('shopping guide' in title_lower or 'お買い物ガイド' in product_data['title'] or 
+            'guide' in title_lower and 'shopping' in title_lower) and product_data.get('content'):
+            # Use first non-empty line of content as title
+            content_lines = [line.strip() for line in product_data['content'].split('\n') if line.strip()]
+            if content_lines:
+                product_data['title'] = content_lines[0]
+        
+        product_data['menu_item'] = product_data['title']
+        
+        # Extract price
+        price_elem = soup.find(string=re.compile(r'¥[\d,]+|￥[\d,]+|[\d,]+円', re.I))
+        if price_elem:
+            price_text = price_elem.strip()
+            price_match = re.search(r'[¥￥]?([\d,]+)', price_text)
+            if price_match:
+                product_data['price'] = price_match.group(1).replace(',', '')
+        
+        # Extract images
+        img_elems = soup.find_all('img', src=True)
+        for img in img_elems:
+            img_src = img.get('src') or img.get('data-src')
+            if img_src:
+                if img_src.startswith('//'):
+                    img_src = 'https:' + img_src
+                elif img_src.startswith('/'):
+                    img_src = urljoin(url, img_src)
+                if img_src and img_src not in product_data['images']:
+                    product_data['images'].append(img_src)
+        
+        # Determine category
+        title_lower = product_data['title'].lower()
+        if 'ビール' in product_data['title'] or 'beer' in title_lower or 'ale' in title_lower:
+            product_data['menu_category'] = 'Drinks'
+        elif 'ソース' in product_data['title'] or 'sauce' in title_lower or 'ドレッシング' in product_data['title'] or 'ダシ' in product_data['title']:
+            product_data['menu_category'] = 'Sauce'
+        elif '丼' in product_data['title'] or 'don' in title_lower:
+            product_data['menu_category'] = 'Side Dishes'
+        elif 'セット' in product_data['title'] or 'set' in title_lower or 'ギフト' in product_data['title'] or 'gift' in title_lower:
+            product_data['menu_category'] = 'Gift Set'
+        elif '冷凍' in product_data['title'] or 'frozen' in title_lower:
+            product_data['menu_category'] = 'Frozen'
+        else:
+            product_data['menu_category'] = 'Ramen'
+        
+        return product_data
+    
+    def scrape_ippudo_products(self, ippudo_url="https://ec-ippudo.com/shop/default.aspx"):
+        """Scrape Ippudo online shop products"""
+        print(f"Starting to scrape Ippudo shop products: {ippudo_url}")
+        
+        # Get the main product listing page
+        page_html = self.get_page(ippudo_url, delay=0.6)
+        if not page_html:
+            print("Unable to fetch Ippudo page")
+            return
+        
+        soup = BeautifulSoup(page_html, 'html.parser')
+        
+        print("\nExtracting products from listing page...")
+        
+        # First, try to get product detail links
+        product_links = self.get_ippudo_product_links(soup, ippudo_url)
+        
+        # Also parse products from listing page
+        products = self.parse_ippudo_product_list(soup, ippudo_url)
+        
+        # If we found product detail links, scrape them
+        if product_links:
+            print(f"\nFound {len(product_links)} product detail links, scraping details...")
+            
+            def scrape_single_product(product_url):
+                """Scrape a single product detail page"""
+                product_html = self.get_page(product_url, delay=0.6)
+                if not product_html:
+                    return None
+                
+                product_soup = BeautifulSoup(product_html, 'html.parser')
+                product_data = self.parse_ippudo_product_detail(product_soup, product_url)
+                
+                if product_data['title']:
+                    return product_data
+                return None
+            
+            # Use concurrent threads with 3 workers
+            max_workers = 3
+            scraped_count = 0
+            with ThreadPoolExecutor(max_workers=max_workers) as executor:
+                future_to_url = {executor.submit(scrape_single_product, url): url for url in product_links}
+                
+                completed = 0
+                for future in as_completed(future_to_url):
+                    completed += 1
+                    product_url = future_to_url[future]
+                    try:
+                        product_data = future.result()
+                        if product_data:
+                            self.articles.append(product_data)
+                            scraped_count += 1
+                            print(f"  [{completed}/{len(product_links)}] ✓ {product_data['title'][:50]}")
+                        else:
+                            print(f"  [{completed}/{len(product_links)}] ✗ Failed: {product_url[:60]}")
+                    except Exception as e:
+                        print(f"  [{completed}/{len(product_links)}] ✗ Error: {product_url[:60]} - {e}")
+            
+            print(f"\nScraped {scraped_count} product details")
+        
+        # Add products from listing page parsing
+        for product in products:
+            if product['title']:
+                # Check if already added from detail pages
+                if not any(existing['url'] == product['url'] for existing in self.articles):
+                    self.articles.append(product)
+                    print(f"    ✓ Product: {product['title'][:50]}")
+        
+        print(f"\nIppudo product scraping completed! Retrieved {len([p for p in self.articles if 'ippudo' in p.get('tags', [])])} products")
     
     def save_data(self, filename='scraped_data.json'):
         """Save scraped data"""

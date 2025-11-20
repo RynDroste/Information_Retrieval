@@ -53,7 +53,7 @@
   <field name="section" type="string" indexed="true" stored="true" multiValued="false" />
   <field name="menu_item" type="text_synonym" indexed="true" stored="true" multiValued="false" />
   <field name="menu_category" type="string" indexed="true" stored="true" multiValued="false" />
-  <field name="ingredients" type="text_synonym" indexed="true" stored="true" multiValued="false" />
+  <field name="introduction" type="text_synonym" indexed="true" stored="true" multiValued="false" />
   <field name="store_name" type="text_general" indexed="true" stored="true" multiValued="false" />
   <field name="date" type="date" indexed="true" stored="true" multiValued="false" />
   <field name="tags" type="string" indexed="true" stored="true" multiValued="true" />
