@@ -666,14 +666,13 @@ class ArticleSearch {
     }
 
     renderTags(tags, filterType) {
-        return tags.map(tag => {
-            const isActive = this.activeFilters[filterType] === tag;
-            const isOthers = tag.toLowerCase() === 'others';
-            const tagClass = `tag-badge clickable-tag ${isOthers ? 'tag-others' : ''} ${isActive ? 'active' : ''}`;
-            return `<span class="${tagClass}" 
-                    data-filter-type="${filterType}" data-filter-value="${this.escapeHtml(tag)}" 
-                    title="Click to filter #${this.escapeHtml(tag)}">#${this.escapeHtml(tag)}</span>`;
-        }).join('');
+        return tags
+            .filter(tag => tag.toLowerCase() !== 'others')  // Filter out "others" tag
+            .map(tag => {
+                return `<span class="tag-badge clickable-tag" 
+                        data-filter-type="${filterType}" data-filter-value="${this.escapeHtml(tag)}" 
+                        title="Click to filter #${this.escapeHtml(tag)}">#${this.escapeHtml(tag)}</span>`;
+            }).join('');
     }
 
     displayResults() {
@@ -877,7 +876,12 @@ class ArticleSearch {
                 // Only collect tags from Store Information and Brand Information sections
                 if (article.tags?.length && 
                     (article.section === 'Store Information' || article.section === 'Brand Information')) {
-                    article.tags.forEach(tag => storeTags.add(tag));
+                    article.tags.forEach(tag => {
+                        // Filter out "others" tag
+                        if (tag.toLowerCase() !== 'others') {
+                            storeTags.add(tag);
+                        }
+                    });
                 }
                 // Also collect ippudo tag from Menu section
                 if (article.tags?.length && article.section === 'Menu' && article.tags.includes('ippudo')) {
@@ -953,8 +957,7 @@ class ArticleSearch {
             const isActive = this.activeFilters[filterType] === value;
             
             const tag = document.createElement('span');
-            const isOthers = filterType === 'tag' && value.toLowerCase() === 'others';
-            tag.className = `${badgeClass} clickable-tag ${isOthers ? 'tag-others' : ''} ${isActive ? 'active' : ''}`;
+            tag.className = `${badgeClass} clickable-tag ${isActive ? 'active' : ''}`;
             tag.dataset.filterType = filterType;
             tag.dataset.filterValue = value;
             tag.textContent = filterType === 'tag' ? `#${label}` : label;
