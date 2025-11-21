@@ -887,12 +887,18 @@ class ArticleSearch {
                 if (article.tags?.length && article.section === 'Menu' && article.tags.includes('ippudo')) {
                     storeTags.add('ippudo');
                 }
+                // Also collect kagetsu tag from Menu section
+                if (article.tags?.length && article.section === 'Menu' && article.tags.includes('kagetsu')) {
+                    storeTags.add('kagetsu');
+                }
                 if (article.section) sections.add(article.section);
                 if (article.price_range) priceRanges.add(article.price_range);
             });
             
             // Manually add ippudo tag to store tags (ensure it's always present)
             storeTags.add('ippudo');
+            // Manually add kagetsu tag to store tags (ensure it's always present)
+            storeTags.add('kagetsu');
             
             // Debug: log store tags
             const sortedStoreTags = Array.from(storeTags).sort();

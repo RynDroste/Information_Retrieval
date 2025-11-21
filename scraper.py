@@ -1411,6 +1411,814 @@ class RamenScraper:
         
         print(f"\nIppudo product scraping completed! Retrieved {len([p for p in self.articles if 'ippudo' in p.get('tags', [])])} products")
     
+    def parse_kagetsu_menu(self, soup, url):
+        """Parse Kagetsu menu page - extract menu items from regular_menu section"""
+        menu_items = []
+        
+        # Find the regular_menu section
+        regular_menu_section = soup.find('section', class_='regular_menu')
+        if not regular_menu_section:
+            print(f"Warning: Could not find section with class 'regular_menu' in {url}")
+            return menu_items
+        
+        # Find all tables within the section (side.html has multiple tables)
+        # Also check for tables inside regular_menu_1 div (seasonal.html structure)
+        tables = regular_menu_section.find_all('table')
+        
+        # If no tables found directly, check inside regular_menu_1 div
+        if not tables:
+            regular_menu_1 = regular_menu_section.find('div', class_='regular_menu_1')
+            if regular_menu_1:
+                tables = regular_menu_1.find_all('table')
+                print(f"  Found {len(tables)} table(s) inside regular_menu_1 div")
+        
+        if not tables:
+            print(f"Warning: Could not find table in regular_menu section in {url}")
+            return menu_items
+        
+        print(f"  Found {len(tables)} table(s) to process")
+        
+        # Process each table
+        for table in tables:
+            # Find tbody
+            tbody = table.find('tbody')
+            if not tbody:
+                tbody = table  # If no tbody, use table directly
+            
+            # Find all table rows
+            rows = tbody.find_all('tr')
+            print(f"    Processing {len(rows)} rows in table")
+            
+            for row in rows:
+                try:
+                    # Skip rows that are headers (colspan="2" or only th with no td)
+                    th_colspan = row.find('th', colspan=True)
+                    if th_colspan and th_colspan.get('colspan') == '2':
+                        continue  # Skip header rows like "ONLY IN WINTER"
+                    
+                    # Find the td element containing menu information
+                    # For seasonal menu, td might be in the second column
+                    tds = row.find_all('td')
+                    td = None
+                    
+                    # Try to find td with dl element (menu information)
+                    for t in tds:
+                        if t.find('dl'):
+                            td = t
+                            break
+                    
+                    # If no td with dl found, try first td
+                    if not td and tds:
+                        td = tds[0]
+                    
+                    if not td:
+                        continue
+                    
+                    # Find dl element containing menu details
+                    dl = td.find('dl')
+                    if not dl:
+                        continue
+                    
+                    # Extract menu name from dt
+                    dt = dl.find('dt')
+                    menu_name = ''
+                    if dt:
+                        menu_name = dt.get_text().strip()
+                        # Clean up menu name (remove extra whitespace and newlines)
+                        menu_name = ' '.join(menu_name.split())
+                    
+                    if not menu_name:
+                        continue
+                    
+                    # Extract price from first dd
+                    price = ''
+                    price_dd = dl.find('dd')
+                    if price_dd:
+                        price_text = price_dd.get_text().strip()
+                        # Extract price pattern (e.g., "Price:920yen" or "920yen")
+                        price_match = re.search(r'Price:\s*([\d,]+)\s*yen|([\d,]+)\s*yen', price_text, re.I)
+                        if price_match:
+                            price = price_match.group(1) or price_match.group(2)
+                            price = price.replace(',', '')
+                    
+                    # Extract description from dd with class txt_left
+                    description = ''
+                    desc_dd = dl.find('dd', class_='txt_left')
+                    if desc_dd:
+                        description = desc_dd.get_text().strip()
+                        # Clean up description
+                        description = ' '.join(description.split())
+                    
+                    # Extract images
+                    images = []
+                    # Image in th
+                    th = row.find('th')
+                    if th:
+                        th_imgs = th.find_all('img', src=True)
+                        for th_img in th_imgs:
+                            img_src = th_img.get('src')
+                            if img_src:
+                                if img_src.startswith('//'):
+                                    img_src = 'https:' + img_src
+                                elif img_src.startswith('/'):
+                                    img_src = urljoin(url, img_src)
+                                elif not img_src.startswith('http'):
+                                    img_src = urljoin(url, img_src)
+                                if img_src not in images:
+                                    images.append(img_src)
+                    
+                    # Images in all tds (seasonal menu has images in first td)
+                    for t in row.find_all('td'):
+                        td_imgs = t.find_all('img', src=True)
+                        for td_img in td_imgs:
+                            img_src = td_img.get('src')
+                            if img_src:
+                                if img_src.startswith('//'):
+                                    img_src = 'https:' + img_src
+                                elif img_src.startswith('/'):
+                                    img_src = urljoin(url, img_src)
+                                elif not img_src.startswith('http'):
+                                    img_src = urljoin(url, img_src)
+                                if img_src not in images:
+                                    images.append(img_src)
+                    
+                    # Determine category based on menu name and URL
+                    category = 'Ramen'
+                    menu_name_lower = menu_name.lower()
+                    url_lower = url.lower()
+                    
+                    # First, check menu name for specific patterns
+                    # Check for noodles/soba first (before ramen check)
+                    if 'soba' in menu_name_lower or 'niboshi chuka soba' in menu_name_lower:
+                        category = 'Noodles'
+                    # Check for tsukemen (before ramen check, as tsukemen is a specific type)
+                    elif 'tsukemen' in menu_name_lower:
+                        category = 'Tsukemen'
+                    # Check for ramen (including specific ramen names like "Mara Ramen", "Pork Stamina Ramen")
+                    elif 'ramen' in menu_name_lower:
+                        category = 'Ramen'
+                    # Check for kids menu
+                    elif 'kids' in menu_name_lower or 'okosama' in menu_name_lower:
+                        category = 'Kids Menu'
+                    # Check for side dishes
+                    elif 'side' in menu_name_lower or 'extra' in menu_name_lower or 'set' in menu_name_lower:
+                        category = 'Side Dishes'
+                    elif 'gyoza' in menu_name_lower or 'rice' in menu_name_lower or 'bean sprouts' in menu_name_lower:
+                        category = 'Side Dishes'
+                    # Then check URL if category still not determined
+                    elif 'side.html' in url_lower:
+                        category = 'Side Dishes'
+                    elif 'seasonal.html' in url_lower:
+                        # For seasonal menu, default to Ramen if not already categorized
+                        category = 'Ramen'
+                    
+                    # Build content
+                    content_parts = [menu_name]
+                    if price:
+                        content_parts.append(f"Price: {price}yen")
+                    if description:
+                        content_parts.append(description)
+                    content = '\n'.join(content_parts)
+                    
+                    # Add Kagetsu keyword to content
+                    if "kagetsu" not in content.lower() and "花月嵐" not in content:
+                        content = f"Kagetsu {content}"
+                    
+                    menu_data = {
+                        'url': url,
+                        'title': menu_name,
+                        'content': self.fix_encoding(content),
+                        'section': 'Menu',
+                        'menu_item': self.fix_encoding(menu_name),
+                        'menu_category': category,
+                        'price': price,
+                        'description': self.fix_encoding(description) if description else '',
+                        'images': images,
+                        'date': '',
+                        'author': '',
+                        'tags': ['kagetsu', '花月嵐'],
+                        'categories': []
+                    }
+                    
+                    menu_items.append(menu_data)
+                    
+                except Exception as e:
+                    print(f"Error parsing menu row: {e}")
+                    continue
+        
+        return menu_items
+    
+    def scrape_kagetsu_menu(self):
+        """Scrape Kagetsu menu pages (regular, side, and seasonal)"""
+        # List of all Kagetsu menu pages to scrape
+        kagetsu_urls = [
+            "https://www.kagetsu.co.jp/menu/english/index.html",  # Regular menu
+            "https://www.kagetsu.co.jp/menu/english/side.html",   # Side menu
+            "https://www.kagetsu.co.jp/menu/english/seasonal.html"  # Seasonal menu
+        ]
+        
+        total_items = 0
+        
+        for url in kagetsu_urls:
+            print(f"\n{'='*60}")
+            print(f"Starting to scrape Kagetsu menu page: {url}")
+            print(f"{'='*60}")
+            
+            menu_html = self.get_page(url, delay=0.6)
+            if not menu_html:
+                print(f"✗ Unable to fetch Kagetsu menu page: {url}")
+                continue
+            
+            soup = BeautifulSoup(menu_html, 'html.parser')
+            
+            # Debug: Check if section exists
+            regular_menu_section = soup.find('section', class_='regular_menu')
+            if regular_menu_section:
+                print(f"✓ Found section with class 'regular_menu'")
+            else:
+                print(f"✗ Warning: Could not find section with class 'regular_menu'")
+            
+            print(f"Extracting menu items from regular_menu section...")
+            
+            menu_items = self.parse_kagetsu_menu(soup, url)
+            
+            if menu_items:
+                for menu in menu_items:
+                    if menu['content']:
+                        self.articles.append(menu)
+                        print(f"    ✓ Menu item: {menu['menu_item']} ({menu.get('menu_category', 'Unknown')})")
+            else:
+                print(f"    ⚠ No menu items extracted from {url}")
+            
+            total_items += len(menu_items)
+            print(f"\nRetrieved {len(menu_items)} menu items from {url}")
+        
+        print(f"\nKagetsu menu scraping completed! Retrieved {total_items} total menu items")
+    
+    def parse_kagetsu_stores(self, soup, url, prefecture_name=''):
+        """Parse Kagetsu store page - extract store information from table"""
+        stores = []
+        
+        # Find the table containing store information
+        tables = soup.find_all('table')
+        store_table = None
+        
+        for table in tables:
+            # Look for table with store information (has headers like 店舗名, 住所, TEL, etc.)
+            headers = table.find_all('th')
+            header_text = ' '.join([h.get_text().strip() for h in headers]).lower()
+            if any(keyword in header_text for keyword in ['店舗名', '住所', 'tel', '営業時間']):
+                store_table = table
+                break
+        
+        if not store_table:
+            # If no table found with headers, try the first table with multiple rows
+            for table in tables:
+                rows = table.find_all('tr')
+                if len(rows) > 1:  # Has multiple rows (header + data)
+                    store_table = table
+                    break
+        
+        if not store_table:
+            print(f"    ⚠ No store table found in {url}")
+            return stores
+        
+        # Extract table rows
+        rows = store_table.find_all('tr')
+        if len(rows) < 2:
+            print(f"    ⚠ Table found but no data rows in {url}")
+            return stores
+        
+        # Process each row (skip header row)
+        for i, row in enumerate(rows):
+            # Skip header row
+            if i == 0:
+                continue
+            
+            try:
+                cells = row.find_all(['td', 'th'])
+                if len(cells) < 3:  # Need at least store name, address, and phone
+                    continue
+                
+                # Extract store name (first cell, may contain link)
+                store_name_cell = cells[0]
+                store_name = ''
+                # Try to find link first (store name is usually in a link)
+                link = store_name_cell.find('a')
+                if link:
+                    store_name = link.get_text().strip()
+                    # Remove brackets like [青森東バイパス店]
+                    store_name = re.sub(r'\[.*?\]', '', store_name).strip()
+                else:
+                    store_name = store_name_cell.get_text().strip()
+                    # Remove brackets
+                    store_name = re.sub(r'\[.*?\]', '', store_name).strip()
+                
+                if not store_name or len(store_name) < 3:
+                    continue
+                
+                # Filter out non-store entries
+                skip_keywords = [
+                    '店舗営業時間について', 'テイクアウト対応', '営業時間について',
+                    '店舗検索', '都道府県', '新店情報', 'お知らせ', '公式SNS',
+                    'ホームページ', 'お問い合わせ', '店舗リスト', 'ショップリスト',
+                    '店舗名', '住所', 'TEL', '営業時間', '検索結果', '検索トップ'
+                ]
+                
+                if any(keyword in store_name for keyword in skip_keywords):
+                    continue
+                
+                # Extract address (second cell)
+                address = cells[1].get_text().strip() if len(cells) > 1 else ''
+                
+                # Extract phone (third cell)
+                phone = cells[2].get_text().strip() if len(cells) > 2 else ''
+                
+                # Extract hours (fourth cell)
+                hours = cells[3].get_text().strip() if len(cells) > 3 else ''
+                # Clean up hours (remove notice text)
+                hours = re.sub(r'諸般の事情により.*', '', hours).strip()
+                
+                # Extract takeout info (fifth cell)
+                takeout = ''
+                if len(cells) > 4:
+                    takeout_cell = cells[4]
+                    if takeout_cell.find('img', alt=re.compile('テイクアウト', re.I)) or 'テイクアウト' in takeout_cell.get_text():
+                        takeout = 'テイクアウト対応'
+                
+                # Extract delivery info (sixth cell)
+                delivery = ''
+                if len(cells) > 5:
+                    delivery_cell = cells[5]
+                    if 'デリバリー' in delivery_cell.get_text():
+                        delivery = 'デリバリー対応'
+                
+                # Build store content
+                content_parts = [store_name]
+                if address:
+                    content_parts.append(f"住所: {address}")
+                if phone:
+                    content_parts.append(f"TEL: {phone}")
+                if hours:
+                    content_parts.append(f"営業時間: {hours}")
+                if takeout:
+                    content_parts.append(takeout)
+                if delivery:
+                    content_parts.append(delivery)
+                
+                store_content = '\n'.join(content_parts)
+                
+                if prefecture_name:
+                    store_content = f"{prefecture_name} {store_content}"
+                
+                # Add Kagetsu keyword
+                if "kagetsu" not in store_content.lower() and "花月嵐" not in store_content:
+                    store_content = f"Kagetsu 花月嵐 {store_content}"
+                
+                store_data = {
+                    'url': url,
+                    'title': f'Store - {store_name}',
+                    'content': self.fix_encoding(store_content),
+                    'section': 'Store Information',
+                    'store_name': self.fix_encoding(store_name),
+                    'date': '',
+                    'author': '',
+                    'tags': ['kagetsu', '花月嵐'],
+                    'categories': []
+                }
+                
+                stores.append(store_data)
+                
+            except Exception as e:
+                print(f"    Error parsing store row: {e}")
+                continue
+        
+        return stores
+    
+    def scrape_kagetsu_stores(self, base_url="https://www.kg2.jp/"):
+        """Scrape Kagetsu store information from all prefectures"""
+        print(f"\n{'='*60}")
+        print(f"Starting to scrape Kagetsu store information from: {base_url}")
+        print(f"{'='*60}")
+        
+        # First, get the main page to extract prefecture options
+        main_html = self.get_page(base_url, delay=0.6)
+        if not main_html:
+            print(f"✗ Unable to fetch main page: {base_url}")
+            return
+        
+        main_soup = BeautifulSoup(main_html, 'html.parser')
+        
+        # Find the select element with prefecture options
+        select_elem = main_soup.find('select', {'name': 'sel'}) or main_soup.find('select', class_='formParts03')
+        if not select_elem:
+            print("✗ Could not find prefecture select element")
+            return
+        
+        # Extract all prefecture options
+        prefecture_options = []
+        options = select_elem.find_all('option')
+        for option in options:
+            value = option.get('value', '').strip()
+            text = option.get_text().strip()
+            if value and value != '' and text and text != '都道府県で絞り込む':
+                prefecture_options.append({
+                    'value': value,
+                    'name': text
+                })
+        
+        print(f"✓ Found {len(prefecture_options)} prefectures to scrape")
+        
+        total_stores = 0
+        
+        # Scrape stores from each prefecture
+        for prefecture in prefecture_options:
+            prefecture_url = urljoin(base_url, prefecture['value'])
+            prefecture_name = prefecture['name']
+            
+            print(f"\n  → Scraping {prefecture_name}: {prefecture_url}")
+            
+            prefecture_html = self.get_page(prefecture_url, delay=0.6)
+            if not prefecture_html:
+                print(f"    ✗ Unable to fetch page: {prefecture_url}")
+                continue
+            
+            prefecture_soup = BeautifulSoup(prefecture_html, 'html.parser')
+            
+            stores = self.parse_kagetsu_stores(prefecture_soup, prefecture_url, prefecture_name)
+            
+            if stores:
+                for store in stores:
+                    self.articles.append(store)
+                    print(f"    ✓ Store: {store['store_name']}")
+                total_stores += len(stores)
+                print(f"    Retrieved {len(stores)} stores from {prefecture_name}")
+            else:
+                print(f"    ⚠ No stores found in {prefecture_name}")
+        
+        print(f"\n{'='*60}")
+        print(f"Kagetsu store scraping completed! Retrieved {total_stores} total stores")
+        print(f"{'='*60}")
+    
+    def parse_ippudo_store_detail(self, soup, url, prefecture_name=''):
+        """Parse a single Ippudo store detail page"""
+        try:
+            # Extract store name
+            store_name = ''
+            
+            # Try multiple methods to find store name
+            name_selectors = [
+                soup.find('h1'),
+                soup.find('h2'),
+                soup.find(['h1', 'h2'], class_=re.compile('title|name|brand', re.I)),
+                soup.find('span', class_=re.compile('LocationName|brand|name', re.I)),
+                soup.find('div', class_=re.compile('store.*name|location.*name', re.I))
+            ]
+            
+            for selector in name_selectors:
+                if selector:
+                    text = selector.get_text().strip()
+                    if text and ('一風堂' in text or 'ippudo' in text.lower() or len(text) > 3):
+                        store_name = text
+                        break
+            
+            if not store_name:
+                # Try to extract from page title
+                title = soup.find('title')
+                if title:
+                    title_text = title.get_text().strip()
+                    if '一風堂' in title_text or 'ippudo' in title_text.lower():
+                        store_name = title_text.split('|')[0].split('-')[0].strip()
+            
+            if not store_name:
+                return None
+            
+            # Extract address
+            address = ''
+            address_heading = soup.find(['h2', 'h3', 'h4'], string=re.compile(r'Address|住所', re.I))
+            if address_heading:
+                address_elem = address_heading.find_next(['div', 'p', 'address'])
+                if address_elem:
+                    address = address_elem.get_text().strip()
+                    address = ' '.join(address.split())
+            
+            if not address:
+                address_elem = soup.find('address', class_=re.compile('address', re.I))
+                if address_elem:
+                    address = address_elem.get_text().strip()
+                    address = ' '.join(address.split())
+            
+            if not address:
+                all_text = soup.get_text()
+                address_match = re.search(r'Address\s*\n\s*([^\n]+(?:\n[^\n]+){0,5})', all_text, re.I)
+                if address_match:
+                    address = address_match.group(1).strip()
+                    address = ' '.join(address.split())
+                else:
+                    address_match = re.search(r'住所[：:]\s*([^\n]+)', all_text)
+                    if address_match:
+                        address = address_match.group(1).strip()
+            
+            # Extract phone
+            phone = ''
+            phone_heading = soup.find(['h2', 'h3', 'h4', 'strong', 'b'], string=re.compile(r'TEL|Phone|電話', re.I))
+            if phone_heading:
+                phone_text = phone_heading.get_text()
+                phone_match = re.search(r'TEL[：:]\s*([^\n]+)', phone_text, re.I)
+                if phone_match:
+                    phone = phone_match.group(1).strip()
+                else:
+                    next_elem = phone_heading.find_next(['div', 'p', 'span', 'a'])
+                    if next_elem:
+                        phone = next_elem.get_text().strip()
+            
+            if not phone:
+                phone_elem = soup.find(['a', 'div', 'span'], class_=re.compile('phone|tel', re.I))
+                if phone_elem:
+                    phone = phone_elem.get_text().strip()
+            
+            if phone:
+                phone_match = re.search(r'(\d{2,4}[-\(\)\s]*\d{1,4}[-\(\)\s]*\d{1,4})', phone)
+                if phone_match:
+                    phone = phone_match.group(1)
+                    phone = re.sub(r'[^\d\-\(\)\s]', '', phone)
+                else:
+                    phone = re.sub(r'[^\d\-\(\)\s]', '', phone)
+            
+            if not phone:
+                all_text = soup.get_text()
+                phone_match = re.search(r'TEL[：:]\s*([^\n]+)', all_text, re.I)
+                if not phone_match:
+                    phone_match = re.search(r'Phone[：:]\s*([^\n]+)', all_text, re.I)
+                if phone_match:
+                    phone = phone_match.group(1).strip()
+                    phone_num_match = re.search(r'(\d{2,4}[-\(\)\s]*\d{1,4}[-\(\)\s]*\d{1,4})', phone)
+                    if phone_num_match:
+                        phone = phone_num_match.group(1)
+                    phone = re.sub(r'[^\d\-\(\)\s]', '', phone)
+            
+            # Extract hours
+            hours = ''
+            hours_heading = soup.find(['h2', 'h3', 'h4'], string=re.compile(r'Store Hours|営業時間', re.I))
+            if hours_heading:
+                hours_table = hours_heading.find_next('table')
+                if hours_table:
+                    rows = hours_table.find_all('tr')
+                    if len(rows) > 1:
+                        first_row = rows[1]
+                        cells = first_row.find_all(['td', 'th'])
+                        if len(cells) >= 2:
+                            hours = cells[1].get_text().strip()
+                else:
+                    hours_elem = hours_heading.find_next(['div', 'p', 'span'])
+                    if hours_elem:
+                        hours = hours_elem.get_text().strip()
+                        hours_match = re.search(r'(\d{1,2}:\d{2}\s*[~〜]\s*\d{1,2}:\d{2})', hours)
+                        if hours_match:
+                            hours = hours_match.group(1)
+            
+            if not hours:
+                hours_elem = soup.find(['div', 'span', 'p'], class_=re.compile('hours|time|営業', re.I))
+                if hours_elem:
+                    hours = hours_elem.get_text().strip()
+                    hours_match = re.search(r'(\d{1,2}:\d{2}\s*[~〜]\s*\d{1,2}:\d{2})', hours)
+                    if hours_match:
+                        hours = hours_match.group(1)
+            
+            if not hours:
+                all_text = soup.get_text()
+                hours_match = re.search(r'Store Hours[：:]\s*(\d{1,2}:\d{2}\s*[~〜]\s*\d{1,2}:\d{2})', all_text, re.I)
+                if not hours_match:
+                    hours_match = re.search(r'営業時間[：:]\s*([^\n]+)', all_text)
+                if not hours_match:
+                    hours_match = re.search(r'(\d{1,2}:\d{2}\s*[~〜]\s*\d{1,2}:\d{2})', all_text)
+                if hours_match:
+                    hours = hours_match.group(1).strip() if hours_match.lastindex else hours_match.group(0).strip()
+            
+            # Build store content
+            content_parts = [store_name]
+            if address:
+                content_parts.append(f"住所: {address}")
+            if phone:
+                content_parts.append(f"TEL: {phone}")
+            if hours:
+                content_parts.append(f"営業時間: {hours}")
+            
+            store_content = '\n'.join(content_parts)
+            
+            if prefecture_name:
+                store_content = f"{prefecture_name} {store_content}"
+            
+            if "ippudo" not in store_content.lower() and "一風堂" not in store_content:
+                store_content = f"Ippudo 一風堂 {store_content}"
+            
+            store_data = {
+                'url': url,
+                'title': f'Store - {store_name}',
+                'content': self.fix_encoding(store_content),
+                'section': 'Store Information',
+                'store_name': self.fix_encoding(store_name),
+                'date': '',
+                'author': '',
+                'tags': ['ippudo', '一風堂'],
+                'categories': []
+            }
+            
+            return store_data
+        except Exception as e:
+            print(f"    Error parsing store detail page: {e}")
+            return None
+    
+    def extract_directory_links(self, soup, base_url):
+        """Extract directory links from Directory-listLinks"""
+        links = []
+        directory_list = soup.find('ul', class_='Directory-listLinks')
+        if not directory_list:
+            return links
+        
+        list_items = directory_list.find_all('li', class_='Directory-listItem')
+        for item in list_items:
+            link = item.find('a', class_='Directory-listLink', href=True)
+            if link:
+                href = link.get('href', '')
+                text_elem = link.find('span', class_='Directory-listLinkText')
+                text = text_elem.get_text().strip() if text_elem else link.get_text().strip()
+                
+                if href and text:
+                    full_url = urljoin(base_url, href)
+                    links.append({
+                        'url': full_url,
+                        'name': text
+                    })
+        
+        return links
+    
+    def scrape_ippudo_stores_recursive(self, url, prefecture_name='', visited_urls=None, max_depth=5, current_depth=0):
+        """Recursively scrape Ippudo stores from directory pages"""
+        if visited_urls is None:
+            visited_urls = set()
+        
+        if url in visited_urls or current_depth > max_depth:
+            return []
+        
+        visited_urls.add(url)
+        stores = []
+        
+        print(f"    {'  ' * current_depth}→ Scraping: {url}")
+        
+        html = self.get_page(url, delay=0.4)
+        if not html:
+            return stores
+        
+        soup = BeautifulSoup(html, 'html.parser')
+        
+        # Check if this is a store detail page (URL contains /en/ followed by numbers)
+        if re.search(r'/en/\d+', url):
+            store_data = self.parse_ippudo_store_detail(soup, url, prefecture_name)
+            if store_data:
+                stores.append(store_data)
+                print(f"    {'  ' * current_depth}  ✓ Store: {store_data['store_name']}")
+            return stores
+        
+        # Otherwise, this is a directory page - extract sub-links
+        directory_links = self.extract_directory_links(soup, url)
+        
+        # Also check if this page contains store listings (ResultList)
+        store_listings = []
+        result_list = soup.find('ol', class_=re.compile('ResultList', re.I))
+        if result_list:
+            list_items = result_list.find_all('li', class_=re.compile('ResultList-item', re.I))
+            for item in list_items:
+                # Extract store link from listing
+                store_link = item.find('a', href=True)
+                if store_link:
+                    store_href = store_link.get('href', '')
+                    if store_href:
+                        store_url = urljoin(url, store_href)
+                        # Check if it's a store detail page
+                        if re.search(r'/en/\d+', store_url):
+                            store_listings.append(store_url)
+        
+        # Also search for all links that point to store detail pages
+        if not store_listings:
+            all_links = soup.find_all('a', href=True)
+            seen_store_urls = set()
+            for link in all_links:
+                href = link.get('href', '')
+                if href and re.search(r'/en/\d+', href):
+                    store_url = urljoin(url, href)
+                    # Skip if it's already in visited_urls, directory_links, or seen
+                    if store_url not in visited_urls and store_url not in seen_store_urls:
+                        # Check if it's not in directory_links
+                        is_in_directory = False
+                        if directory_links:
+                            for dir_link in directory_links:
+                                if dir_link['url'] == store_url:
+                                    is_in_directory = True
+                                    break
+                        if not is_in_directory:
+                            store_listings.append(store_url)
+                            seen_store_urls.add(store_url)
+        
+        # Remove duplicates from store_listings
+        store_listings = list(dict.fromkeys(store_listings))
+        
+        # If we found store listings, parse them
+        if store_listings:
+            print(f"    {'  ' * current_depth}  Found {len(store_listings)} store listings on this page")
+            for store_url in store_listings:
+                if store_url not in visited_urls:
+                    store_html = self.get_page(store_url, delay=0.3)
+                    if store_html:
+                        store_soup = BeautifulSoup(store_html, 'html.parser')
+                        store_data = self.parse_ippudo_store_detail(store_soup, store_url, prefecture_name)
+                        if store_data:
+                            stores.append(store_data)
+                            print(f"    {'  ' * current_depth}  ✓ Store: {store_data['store_name']}")
+        
+        # Also process directory links if they exist
+        if directory_links:
+            print(f"    {'  ' * current_depth}  Found {len(directory_links)} sub-links")
+            for link in directory_links:
+                link_url = link['url']
+                link_name = link['name']
+                
+                # Recursively scrape sub-links
+                sub_stores = self.scrape_ippudo_stores_recursive(
+                    link_url, 
+                    prefecture_name or link_name,
+                    visited_urls,
+                    max_depth,
+                    current_depth + 1
+                )
+                stores.extend(sub_stores)
+        elif not store_listings:
+            # No directory links and no store listings, try to parse as store detail page
+            store_data = self.parse_ippudo_store_detail(soup, url, prefecture_name)
+            if store_data:
+                # Check if it's actually a store (not a directory page title)
+                store_name = store_data['store_name']
+                if not any(keyword in store_name for keyword in ['Stores in', 'Store in', '店舗', 'Directory']):
+                    stores.append(store_data)
+                    print(f"    {'  ' * current_depth}  ✓ Store: {store_data['store_name']}")
+        
+        return stores
+    
+    def scrape_ippudo_stores(self, base_url="https://stores.ippudo.com/en/japan"):
+        """Scrape Ippudo store information from all prefectures"""
+        print(f"\n{'='*60}")
+        print(f"Starting to scrape Ippudo store information from: {base_url}")
+        print(f"{'='*60}")
+        
+        # Get the main page
+        main_html = self.get_page(base_url, delay=0.6)
+        if not main_html:
+            print(f"✗ Unable to fetch main page: {base_url}")
+            return
+        
+        main_soup = BeautifulSoup(main_html, 'html.parser')
+        
+        # Extract all prefecture links from Directory-listLinks
+        prefecture_links = self.extract_directory_links(main_soup, base_url)
+        
+        if not prefecture_links:
+            print("✗ Could not find prefecture links")
+            return
+        
+        print(f"✓ Found {len(prefecture_links)} prefecture links")
+        
+        all_stores = []
+        all_store_names = set()
+        visited_urls = set()
+        
+        # Scrape stores from each prefecture
+        for prefecture in prefecture_links:
+            prefecture_url = prefecture['url']
+            prefecture_name = prefecture['name']
+            
+            print(f"\n  → Scraping {prefecture_name}: {prefecture_url}")
+            
+            # Recursively scrape stores from this prefecture
+            stores = self.scrape_ippudo_stores_recursive(
+                prefecture_url,
+                prefecture_name,
+                visited_urls,
+                max_depth=5
+            )
+            
+            # Add stores, avoiding duplicates
+            for store in stores:
+                if store['store_name'] not in all_store_names:
+                    self.articles.append(store)
+                    all_store_names.add(store['store_name'])
+                    all_stores.append(store)
+            
+            print(f"    Retrieved {len(stores)} stores from {prefecture_name}")
+        
+        print(f"\n{'='*60}")
+        print(f"Ippudo store scraping completed! Retrieved {len(all_stores)} total stores")
+        print(f"{'='*60}")
+    
     def save_data(self, filename='scraped_data.json'):
         """Save scraped data"""
         output_dir = 'data'

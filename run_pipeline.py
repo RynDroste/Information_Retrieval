@@ -304,6 +304,15 @@ class PipelineRunner:
             # Scraping from https://ec-ippudo.com/shop/default.aspx
             scraper.scrape_ippudo_products()
             
+            # Scraping from https://stores.ippudo.com/en/japan (Ippudo store information)
+            scraper.scrape_ippudo_stores()
+            
+            # Scraping from https://www.kagetsu.co.jp/menu/english/index.html
+            scraper.scrape_kagetsu_menu()
+            
+            # Scraping from https://www.kg2.jp/ (Kagetsu store information)
+            scraper.scrape_kagetsu_stores()
+            
             filepath = scraper.save_data()
             
             if filepath and os.path.exists(filepath):
