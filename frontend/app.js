@@ -5,6 +5,7 @@ class ArticleSearch {
         this.solrUrl = 'http://localhost:8888/solr/RamenProject/select';
         this.semanticApiUrl = 'http://localhost:8889';
         this.semanticSearchAvailable = false;
+        this.totalItems = 0;  // Total items in database
         this.init();
     }
 
@@ -145,7 +146,32 @@ class ArticleSearch {
             queryParts.push(`menu_category:"${val}"`);
         }
         if (this.activeFilters.tag) {
-            queryParts.push(`tags:"${this.activeFilters.tag.replace(/"/g, '\\"')}"`);
+            // Map for brand tag aliases (English -> Japanese)
+            // Note: '花月嵐' and '一風堂' have been removed from data, so only English tags remain
+            const brandTagAliases = {
+                'ippudo': ['ippudo'],  // '一風堂' removed from data
+                'kagetsu': ['kagetsu']  // '花月嵐' removed from data
+            };
+            
+            const tagValue = this.activeFilters.tag.replace(/"/g, '\\"');
+            
+            // Check if this is a brand tag with aliases
+            if (brandTagAliases[this.activeFilters.tag]) {
+                const aliases = brandTagAliases[this.activeFilters.tag];
+                // If only one alias, use simple query; otherwise use OR query
+                if (aliases.length === 1) {
+                    queryParts.push(`tags:"${aliases[0].replace(/"/g, '\\"')}"`);
+                } else {
+                    // Create OR query for multiple aliases
+                    const aliasQueries = aliases.map(
+                        alias => `tags:"${alias.replace(/"/g, '\\"')}"`
+                    );
+                    queryParts.push(`(${aliasQueries.join(' OR ')})`);
+                }
+            } else {
+                // Regular tag filter
+                queryParts.push(`tags:"${tagValue}"`);
+            }
         }
         if (this.activeFilters.priceRange) {
             const val = this.activeFilters.priceRange.trim().replace(/[+\-&|!(){}[\]^"~*?:\\]/g, '\\$&');
@@ -174,12 +200,17 @@ class ArticleSearch {
         loading.style.display = 'block';
         results.innerHTML = '';
         noResults.style.display = 'none';
+        
+        // Reset result count to show searching state
+        this.updateResultCount(0);
 
         try {
             await this.searchSolr(finalQuery);
             await this.loadAllTags();
         } catch (error) {
             this.showError(error, results);
+            // On error, restore total count
+            this.updateResultCount(this.totalItems);
         } finally {
             loading.style.display = 'none';
         }
@@ -679,6 +710,9 @@ class ArticleSearch {
         const results = document.getElementById('results');
         const noResults = document.getElementById('noResults');
 
+        // Update stats with current search results count
+        this.updateResultCount(this.filteredArticles.length);
+
         if (this.filteredArticles.length === 0) {
             results.innerHTML = '';
             noResults.style.display = 'block';
@@ -765,6 +799,8 @@ class ArticleSearch {
     clearAllFilters() {
         this.activeFilters = { section: null, category: null, tag: null, priceRange: null };
         this.updateActiveFiltersDisplay();
+        // Clear search input
+        document.getElementById('searchInput').value = '';
         this.performSearchWithFilters();
     }
     
@@ -859,10 +895,19 @@ class ArticleSearch {
             const params = new URLSearchParams({ q: '*:*', rows: 0, wt: 'json' });
             const response = await fetch(`${this.solrUrl}?${params}`);
             const count = response.ok ? ((await response.json()).response?.numFound || 0) : '?';
-            document.getElementById('resultCount').textContent = count;
+            this.totalItems = count;
+            this.updateResultCount(count);
         } catch (error) {
             console.error('Error getting stats:', error);
-            document.getElementById('resultCount').textContent = '?';
+            this.totalItems = '?';
+            this.updateResultCount('?');
+        }
+    }
+    
+    updateResultCount(count) {
+        const resultCountElement = document.getElementById('resultCount');
+        if (resultCountElement) {
+            resultCountElement.textContent = count;
         }
     }
     
@@ -870,6 +915,12 @@ class ArticleSearch {
         try {
             const articles = await this.getAllArticles();
             const categories = new Set(), storeTags = new Set(), sections = new Set(), priceRanges = new Set();
+            
+            // Brand tag mapping: Japanese -> English
+            const brandTagMap = {
+                '一風堂': 'ippudo',
+                '花月嵐': 'kagetsu'
+            };
             
             articles.forEach(article => {
                 if (article.menu_category) categories.add(article.menu_category);
@@ -879,7 +930,12 @@ class ArticleSearch {
                     article.tags.forEach(tag => {
                         // Filter out "others" tag
                         if (tag.toLowerCase() !== 'others') {
-                            storeTags.add(tag);
+                            // Replace Japanese brand tags with English versions
+                            if (brandTagMap[tag]) {
+                                storeTags.add(brandTagMap[tag]);
+                            } else {
+                                storeTags.add(tag);
+                            }
                         }
                     });
                 }
@@ -900,8 +956,22 @@ class ArticleSearch {
             // Manually add kagetsu tag to store tags (ensure it's always present)
             storeTags.add('kagetsu');
             
+            // Final cleanup: Remove any remaining Japanese brand tags
+            for (const japaneseTag of Object.keys(brandTagMap)) {
+                storeTags.delete(japaneseTag);
+            }
+            
             // Debug: log store tags
-            const sortedStoreTags = Array.from(storeTags).sort();
+            let sortedStoreTags = Array.from(storeTags).sort();
+            
+            // Manual filtering: Hide Japanese brand tags if English versions exist
+            if (storeTags.has('ippudo')) {
+                sortedStoreTags = sortedStoreTags.filter(tag => tag !== '一風堂');
+            }
+            if (storeTags.has('kagetsu')) {
+                sortedStoreTags = sortedStoreTags.filter(tag => tag !== '花月嵐');
+            }
+            
             console.log('Store tags collected:', sortedStoreTags);
             console.log('storeTagList container exists:', document.getElementById('storeTagList') !== null);
             

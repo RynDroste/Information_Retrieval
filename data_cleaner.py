@@ -259,6 +259,10 @@ class DataCleaner:
         else:
             cleaned['tags'] = []
         
+        # Remove specific tags: 花月嵐 and 一風堂
+        tags_to_remove = ['花月嵐', '一風堂']
+        cleaned['tags'] = [tag for tag in cleaned['tags'] if tag not in tags_to_remove]
+        
         # Add 'others' tag for non-food products
         if cleaned.get('section') == 'Menu' and self.is_non_food_product(article):
             if 'others' not in cleaned['tags']:
