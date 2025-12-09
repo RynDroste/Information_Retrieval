@@ -10,6 +10,9 @@ from urllib.parse import urlparse, parse_qs
 import urllib.request
 import json
 import sys
+import os
+from pathlib import Path
+from datetime import datetime
 
 SOLR_URL = 'http://localhost:8983'
 PROXY_PORT = 8888
@@ -81,6 +84,63 @@ class SolrProxyHandler(BaseHTTPRequestHandler):
             }).encode('utf-8')
             self.wfile.write(error_response)
             print(f"Error proxying request: {e}", file=sys.stderr)
+    
+    def do_POST(self):
+        """Handle POST requests (used for user feedback logging)"""
+        parsed_path = urlparse(self.path)
+        if parsed_path.path == '/feedback/log':
+            try:
+                content_length = int(self.headers.get('Content-Length', 0))
+                body = self.rfile.read(content_length) if content_length > 0 else b'{}'
+                try:
+                    data = json.loads(body.decode('utf-8') or '{}')
+                except json.JSONDecodeError:
+                    data = {'raw_body': body.decode('utf-8', errors='replace')}
+                
+                # Enrich with server-side metadata
+                log_entry = {
+                    **data,
+                    'client_ip': self.client_address[0] if self.client_address else None,
+                    'user_agent': self.headers.get('User-Agent'),
+                    'logged_at': datetime.utcnow().isoformat() + 'Z'
+                }
+                
+                # Write to logs/feedback.jsonl (one JSON per line)
+                base_dir = Path(__file__).parent
+                logs_dir = base_dir / 'logs'
+                logs_dir.mkdir(parents=True, exist_ok=True)
+                log_file = logs_dir / 'feedback.jsonl'
+                with log_file.open('a', encoding='utf-8') as f:
+                    f.write(json.dumps(log_entry, ensure_ascii=False) + '\n')
+                
+                # Send success response with CORS headers
+                self.send_response(200)
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.send_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+                self.send_header('Access-Control-Allow-Headers', 'Content-Type')
+                self.send_header('Content-Type', 'application/json')
+                self.end_headers()
+                self.wfile.write(json.dumps({'success': True}).encode('utf-8'))
+            except Exception as e:
+                self.send_response(500)
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.send_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+                self.send_header('Access-Control-Allow-Headers', 'Content-Type')
+                self.send_header('Content-Type', 'application/json')
+                self.end_headers()
+                error_response = json.dumps({
+                    'success': False,
+                    'error': str(e),
+                    'type': type(e).__name__
+                }).encode('utf-8')
+                self.wfile.write(error_response)
+                print(f"Error logging feedback: {e}", file=sys.stderr)
+        else:
+            self.send_response(404)
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.send_header('Content-Type', 'application/json')
+            self.end_headers()
+            self.wfile.write(json.dumps({'error': 'Not Found'}).encode('utf-8'))
     
     def log_message(self, format, *args):
         """Override to reduce log noise"""

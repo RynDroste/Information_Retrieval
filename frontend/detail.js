@@ -16,6 +16,17 @@ class ArticleDetail {
             return;
         }
         
+        // Decode the ID (it was encoded with encodeURIComponent in the link)
+        // But URLSearchParams.get() already decodes it, so this should be fine
+        // However, if there are issues, we can try decoding explicitly
+        try {
+            this.articleId = decodeURIComponent(this.articleId);
+        } catch (e) {
+            // If decoding fails, use the original ID
+            console.warn('Failed to decode article ID, using original:', e);
+        }
+        
+        console.log('Loading article with ID:', this.articleId);
         this.loadArticle();
     }
 
@@ -26,11 +37,20 @@ class ArticleDetail {
             const solrProxyUrl = 'http://localhost:8888/solr/RamenProject/select';
             const solrDirectUrl = 'http://localhost:8983/solr/RamenProject/select';
             
+            // Escape special characters in ID for Solr query
+            // Solr special characters: + - && || ! ( ) { } [ ] ^ " ~ * ? : \
+            // Note: We need to escape backslashes first, then other characters
+            const escapedId = this.articleId
+                .replace(/\\/g, '\\\\')  // Escape backslashes first
+                .replace(/[+\-&|!(){}[\]^"~*?:]/g, '\\$&');  // Then escape other special chars
+            
             const params = new URLSearchParams({
-                q: `id:"${this.articleId}"`,
+                q: `id:"${escapedId}"`,
                 wt: 'json',
                 fl: '*,score'
             });
+            
+            console.log('Querying Solr with escaped ID:', escapedId);
             
             let response;
             let data;
@@ -52,7 +72,30 @@ class ArticleDetail {
                 this.article = this.parseDoc(data.response.docs[0]);
                 this.displayArticle();
             } else {
-                this.showError('Article not found');
+                // Try alternative query without quotes (in case ID doesn't need quotes)
+                console.log('First query failed, trying alternative query without quotes...');
+                const altParams = new URLSearchParams({
+                    q: `id:${escapedId}`,
+                    wt: 'json',
+                    fl: '*,score'
+                });
+                
+                try {
+                    const altResponse = await fetch(`${solrProxyUrl}?${altParams}`);
+                    if (altResponse.ok) {
+                        const altData = await altResponse.json();
+                        if (altData.response && altData.response.docs && altData.response.docs.length > 0) {
+                            this.article = this.parseDoc(altData.response.docs[0]);
+                            this.displayArticle();
+                            return;
+                        }
+                    }
+                } catch (altError) {
+                    console.warn('Alternative query also failed:', altError);
+                }
+                
+                console.error('Article not found. Query:', `id:"${escapedId}"`, 'Response:', data);
+                this.showError(`Article not found (ID: ${this.articleId})`);
             }
         } catch (error) {
             console.error('Error loading article:', error);

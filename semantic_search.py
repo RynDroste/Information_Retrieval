@@ -158,4 +158,57 @@ class SemanticSearch:
             Re-ranked documents
         """
         return self.search(query, candidates, top_k, keyword_weight=0.3, semantic_weight=0.7)
+    
+    def pure_semantic_search(self, query: str, all_docs: List[Dict], top_k: int = 10) -> List[Dict]:
+        """
+        Pure semantic search: search from all documents using only semantic similarity
+        This is useful when keyword search returns few or no results (e.g., cross-language queries)
+        
+        Args:
+            query: Search query string
+            all_docs: List of all documents to search from (must include 'id' field)
+            top_k: Number of results to return
+            
+        Returns:
+            List of documents ranked by semantic similarity only
+        """
+        if not self.is_available():
+            return []
+        
+        # Generate query embedding
+        query_embedding = self.labse_embedder.generate_embedding(query)
+        if query_embedding is None:
+            return []
+        
+        # Compute semantic similarities for all documents
+        doc_scores = []
+        for doc in all_docs:
+            doc_id = doc.get('id')
+            if doc_id and doc_id in self.embeddings:
+                doc_embedding = self.embeddings[doc_id]
+                if doc_embedding is not None:
+                    semantic_score = self.labse_embedder.compute_similarity(query_embedding, doc_embedding)
+                    semantic_score = max(0, semantic_score)  # Ensure non-negative
+                    
+                    doc_scores.append({
+                        'doc': doc,
+                        'keyword_score': 0.0,  # No keyword match
+                        'semantic_score': semantic_score,
+                        'combined_score': semantic_score  # Pure semantic score
+                    })
+        
+        # Sort by semantic score
+        doc_scores.sort(key=lambda x: x['semantic_score'], reverse=True)
+        
+        # Update documents with scores
+        results = []
+        for item in doc_scores[:top_k]:
+            doc = item['doc'].copy()
+            doc['score'] = item['combined_score']
+            doc['keyword_score'] = item['keyword_score']
+            doc['semantic_score'] = item['semantic_score']
+            doc['combined_score'] = item['combined_score']
+            results.append(doc)
+        
+        return results
 

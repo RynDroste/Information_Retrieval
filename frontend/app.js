@@ -6,15 +6,51 @@ class ArticleSearch {
         this.semanticApiUrl = 'http://localhost:8889';
         this.semanticSearchAvailable = false;
         this.totalItems = 0;  // Total items in database
+        // Online learning (per-session) feedback stats: doc_id -> {positive: count, negative: count}
+        this.feedbackStats = {};
+        // How much each positive feedback boosts the effective score
+        this.feedbackBoostWeight = 0.2;
+        // How much each negative feedback reduces the effective score
+        this.feedbackPenaltyWeight = 0.2;
         this.init();
     }
 
     async init() {
         this.setupEventListeners();
         await this.checkSemanticSearchAvailability();
+        await this.loadFeedbackStats(); // Load persisted feedback stats
         await this.displayStats();
         await this.loadAllTags();
         this.updateActiveFiltersDisplay();
+    }
+    
+    async loadFeedbackStats() {
+        /**
+         * Load feedback statistics from localStorage to persist across page refreshes
+         */
+        try {
+            const savedStats = localStorage.getItem('feedbackStats');
+            if (savedStats) {
+                this.feedbackStats = JSON.parse(savedStats);
+                console.log(`✓ Loaded ${Object.keys(this.feedbackStats).length} document feedback stats from localStorage`);
+            } else {
+                console.log('No saved feedback stats found, starting fresh');
+            }
+        } catch (error) {
+            console.warn('Failed to load feedback stats from localStorage:', error);
+            this.feedbackStats = {};
+        }
+    }
+    
+    saveFeedbackStats() {
+        /**
+         * Save feedback statistics to localStorage for persistence
+         */
+        try {
+            localStorage.setItem('feedbackStats', JSON.stringify(this.feedbackStats));
+        } catch (error) {
+            console.warn('Failed to save feedback stats to localStorage:', error);
+        }
     }
 
     async checkSemanticSearchAvailability() {
@@ -69,6 +105,31 @@ class ArticleSearch {
     getFieldArray(field, defaultValue = []) {
         if (!field) return defaultValue;
         return Array.isArray(field) ? field.map(String) : [String(field)];
+    }
+
+    /**
+     * Calculate effective score for online learning:
+     * base score (combined_score or keyword_score) + feedback boost - feedback penalty
+     */
+    getEffectiveScore(article) {
+        let baseScore = 0;
+        if (article.combined_score !== undefined && article.combined_score !== null) {
+            baseScore = Number(article.combined_score) || 0;
+        } else if (article.keyword_score !== undefined && article.keyword_score !== null) {
+            baseScore = Number(article.keyword_score) || 0;
+        }
+        
+        // Get feedback counts (positive and negative)
+        const feedback = (this.feedbackStats && article.id && this.feedbackStats[article.id]) || {positive: 0, negative: 0};
+        const positiveCount = feedback.positive || 0;
+        const negativeCount = feedback.negative || 0;
+        
+        // Calculate boost from positive feedback and penalty from negative feedback
+        const boost = this.feedbackBoostWeight * positiveCount;
+        const penalty = this.feedbackPenaltyWeight * negativeCount;
+        
+        // Effective score = base + boost - penalty (ensure non-negative)
+        return Math.max(0, baseScore + boost - penalty);
     }
 
     /**
@@ -230,6 +291,7 @@ class ArticleSearch {
     }
 
     parseDocs(docs) {
+        // 保留检索分数信息，方便后续 user evaluation 使用
         return docs.map(doc => ({
             id: doc.id || '',  // Include ID for detail page navigation
             url: this.getFieldValue(doc.url),
@@ -243,7 +305,11 @@ class ArticleSearch {
             date: this.getFieldValue(doc.date),
             price: this.getFieldValue(doc.price),
             price_range: this.getFieldValue(doc.price_range),
-            tags: this.getFieldArray(doc.tags)
+            tags: this.getFieldArray(doc.tags),
+            // 分数字段：来自 Solr 和语义 rerank（如果启用）
+            keyword_score: (doc.keyword_score !== undefined && doc.keyword_score !== null) ? Number(doc.keyword_score) : null,
+            semantic_score: (doc.semantic_score !== undefined && doc.semantic_score !== null) ? Number(doc.semantic_score) : null,
+            combined_score: (doc.combined_score !== undefined && doc.combined_score !== null) ? Number(doc.combined_score) : null
         }));
     }
 
@@ -441,8 +507,38 @@ class ArticleSearch {
                 console.groupEnd();
             }
             
+            // Check if query contains non-ASCII characters (Japanese, Chinese, etc.)
+            // These queries benefit from pure semantic search for cross-language matching
+            const hasNonAscii = /[^\x00-\x7F]/.test(originalQuery);
+            
+            // If Solr returned very few results OR query contains non-ASCII characters,
+            // use pure semantic search from all documents for better cross-language matching
+            const MIN_RESULTS_FOR_PURE_SEMANTIC = 5;
+            const shouldUsePureSemantic = docs.length < MIN_RESULTS_FOR_PURE_SEMANTIC || hasNonAscii;
+            
+            if (this.semanticSearchAvailable && shouldUsePureSemantic && originalQuery.trim()) {
+                try {
+                    const reason = hasNonAscii 
+                        ? `query contains non-ASCII characters (cross-language)` 
+                        : `Solr returned only ${docs.length} results`;
+                    console.log(`%c🌐 Using pure semantic search: ${reason}`, 'color: purple; font-weight: bold;');
+                    // Get all documents from Solr for pure semantic search
+                    const allDocsResponse = await fetch(`${this.solrUrl}?q=*:*&rows=10000&wt=json&fl=*,score`);
+                    if (allDocsResponse.ok) {
+                        const allDocsData = await allDocsResponse.json();
+                        const allDocs = allDocsData.response?.docs || [];
+                        if (allDocs.length > 0) {
+                            docs = await this.pureSemanticSearch(originalQuery, allDocs);
+                            console.log(`%c✓ Pure semantic search completed`, 'color: green;', `(${docs.length} results)`);
+                        }
+                    }
+                } catch (pureSemanticError) {
+                    console.warn('%c⚠ Pure semantic search failed, using Solr results', 'color: orange;', pureSemanticError);
+                }
+            }
+            
             // If semantic search is available and we have results, rerank using semantic search
-            if (this.semanticSearchAvailable && docs.length > 0 && originalQuery.trim()) {
+            if (this.semanticSearchAvailable && docs.length > 0 && originalQuery.trim() && docs.length >= MIN_RESULTS_FOR_PURE_SEMANTIC) {
                 try {
                     console.log(`%c🔍 Using semantic search for: "${originalQuery}"`, 'color: purple; font-weight: bold;');
                     docs = await this.rerankWithSemanticSearch(originalQuery, docs);
@@ -646,6 +742,86 @@ class ArticleSearch {
         return candidates;
     }
 
+    async pureSemanticSearch(query, allDocs) {
+        /**
+         * Pure semantic search: search from all documents using only semantic similarity
+         * This is useful for cross-language queries (e.g., "醤油" -> "soy sauce")
+         */
+        try {
+            const response = await fetch(`${this.semanticApiUrl}/semantic/search`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    query: query,
+                    all_docs: allDocs,
+                    top_k: 100
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error(`Semantic API request failed: ${response.status}`);
+            }
+
+            const data = await response.json();
+            if (data.success && data.results && data.results.length > 0) {
+                // Apply section-based boost for better relevance
+                // For food/ingredient queries, prioritize Menu section
+                const queryLower = query.toLowerCase().trim();
+                const isFoodRelated = /\b(ramen|noodle|soup|food|dish|menu|ingredient|salt|soy|shio|shoyu|yuzu|chicken|pork|egg)\b/i.test(query) ||
+                                     /[醤油塩柚子鶏豚卵麺]/.test(query); // Japanese food-related characters
+                
+                if (isFoodRelated) {
+                    // Boost Menu section results
+                    data.results = data.results.map(doc => {
+                        const section = this.getFieldValue(doc.section);
+                        const originalScore = doc.semantic_score || 0;
+                        if (section === 'Menu') {
+                            return {
+                                ...doc,
+                                semantic_score: originalScore,
+                                combined_score: originalScore * 1.3, // Boost Menu by 30%
+                                score: originalScore * 1.3
+                            };
+                        } else if (section === 'Store Information' || section === 'Brand Information') {
+                            return {
+                                ...doc,
+                                semantic_score: originalScore,
+                                combined_score: originalScore * 0.7, // Reduce Store/Brand by 30%
+                                score: originalScore * 0.7
+                            };
+                        }
+                        return doc;
+                    });
+                    
+                    // Re-sort by adjusted score
+                    data.results.sort((a, b) => (b.combined_score || b.semantic_score || 0) - (a.combined_score || a.semantic_score || 0));
+                    
+                    console.log(`%c⚡ Applied section boost for food-related query (Menu ×1.3, Store/Brand ×0.7)`, 'color: orange;');
+                }
+                
+                // Log detailed scores for debugging
+                console.group(`%c📊 Pure Semantic Search Results for: "${query}"`, 'color: purple; font-weight: bold;');
+                console.table(data.results.slice(0, 10).map((result, index) => ({
+                    Rank: index + 1,
+                    Title: this.getFieldValue(result.title) || this.getFieldValue(result.menu_item) || 'N/A',
+                    Section: this.getFieldValue(result.section) || 'N/A',
+                    'Semantic Score': (result.semantic_score !== undefined && result.semantic_score !== null) ? result.semantic_score.toFixed(3) : 'N/A',
+                    'Final Score': (result.combined_score !== undefined && result.combined_score !== null) ? result.combined_score.toFixed(3) : (result.semantic_score !== undefined && result.semantic_score !== null) ? result.semantic_score.toFixed(3) : 'N/A'
+                })));
+                console.groupEnd();
+                
+                return data.results;
+            }
+        } catch (error) {
+            console.error('Pure semantic search error:', error);
+            throw error;
+        }
+
+        return [];
+    }
+
     async tryAlternativeQueries(query) {
         const match = query.match(/menu_category:"([^"]+)"/);
         if (!match) return false;
@@ -693,6 +869,9 @@ class ArticleSearch {
                 return catA !== catB ? catA.localeCompare(catB) : 
                     (a.title || '').toLowerCase().localeCompare((b.title || '').toLowerCase());
             });
+        } else {
+            // 默认按“综合相关度”排序：基础分数 + 用户正反馈增益
+            this.filteredArticles.sort((a, b) => this.getEffectiveScore(b) - this.getEffectiveScore(a));
         }
     }
 
@@ -723,7 +902,7 @@ class ArticleSearch {
         const query = document.getElementById('searchInput').value.trim().toLowerCase();
         const queryWords = query ? query.split(/\s+/).filter(w => w.length > 0) : [];
 
-        results.innerHTML = this.filteredArticles.map(article => {
+        results.innerHTML = this.filteredArticles.map((article, index) => {
             const { section, menuCategory, tags, introduction } = {
                 section: article.section || '',
                 menuCategory: article.menu_category || '',
@@ -731,7 +910,7 @@ class ArticleSearch {
                 introduction: article.introduction || ''
             };
 
-            let categoryLine = '', tagsLine = '', introductionLine = '';
+            let categoryLine = '', tagsLine = '';
             
             if (section === 'Menu' && menuCategory) {
                 const isSectionActive = this.activeFilters.section === 'Menu';
@@ -743,7 +922,6 @@ class ArticleSearch {
                           data-filter-type="category" data-filter-value="${this.escapeHtml(menuCategory)}">${this.escapeHtml(menuCategory)}</span>
                 </div>`;
                 if (tags.length > 0) tagsLine = `<div class="tags-line">${this.renderTags(tags, 'tag')}</div>`;
-                if (introduction) introductionLine = `<div class="ingredients-line"><span class="section-label">Introduction:</span><span class="ingredients-text">${this.escapeHtml(introduction)}</span></div>`;
             } else if (section === 'Store Information' || section === 'Brand Information') {
                 const label = section === 'Store Information' ? 'Store' : 'Brand';
                 const badgeClass = section === 'Store Information' ? 'tag-store' : 'tag-brand';
@@ -761,23 +939,48 @@ class ArticleSearch {
             
             // Create detail page link using article ID
             const detailLink = article.id ? `detail.html?id=${encodeURIComponent(article.id)}` : '#';
+            const rank = index + 1;
+            const keywordScore = (article.keyword_score !== undefined && article.keyword_score !== null) ? Number(article.keyword_score) : null;
+            const semanticScore = (article.semantic_score !== undefined && article.semantic_score !== null) ? Number(article.semantic_score) : null;
+            const combinedScore = (article.combined_score !== undefined && article.combined_score !== null) ? Number(article.combined_score) : null;
             
             return `<div class="article-card">
                 <div class="article-header">
                     <h2><a href="${detailLink}">${this.highlightText(article.title, queryWords)}</a></h2>
                     ${priceDisplay}
                 </div>
-                ${categoryLine}${tagsLine}${introductionLine}
+                ${categoryLine}${tagsLine}
                 <div class="article-meta">
                     ${article.menu_item && article.menu_item !== article.title ? `<span>🍜 ${article.menu_item}</span>` : ''}
                     ${article.store_name ? `<span>📍 ${article.store_name}</span>` : ''}
                     ${article.date ? `<span>📅 ${this.formatDate(article.date)}</span>` : ''}
                 </div>
                 <div class="article-content">${this.getContentPreview(article.content, queryWords, 300)}</div>
+                <div class="feedback-buttons">
+                    <button class="feedback-btn feedback-positive"
+                            data-doc-id="${this.escapeHtml(article.id || '')}"
+                            data-rank="${rank}"
+                            data-feedback-type="positive"
+                            data-keyword-score="${keywordScore !== null ? keywordScore : ''}"
+                            data-semantic-score="${semanticScore !== null ? semanticScore : ''}"
+                            data-combined-score="${combinedScore !== null ? combinedScore : ''}">
+                        👍 Useful
+                    </button>
+                    <button class="feedback-btn feedback-negative"
+                            data-doc-id="${this.escapeHtml(article.id || '')}"
+                            data-rank="${rank}"
+                            data-feedback-type="negative"
+                            data-keyword-score="${keywordScore !== null ? keywordScore : ''}"
+                            data-semantic-score="${semanticScore !== null ? semanticScore : ''}"
+                            data-combined-score="${combinedScore !== null ? combinedScore : ''}">
+                        👎 Not useful
+                    </button>
+                </div>
             </div>`;
         }).join('');
         
         this.attachTagClickListeners();
+        this.attachFeedbackListeners();
     }
     
     attachTagClickListeners() {
@@ -788,6 +991,77 @@ class ArticleSearch {
                 this.handleTagClick(tag.dataset.filterType, tag.dataset.filterValue);
             });
         });
+    }
+
+    attachFeedbackListeners() {
+        const buttons = document.querySelectorAll('.feedback-btn');
+        buttons.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                const docId = btn.dataset.docId;
+                const rank = parseInt(btn.dataset.rank || '0', 10);
+                const feedbackType = btn.dataset.feedbackType || 'positive'; // 'positive' or 'negative'
+                const keywordScore = btn.dataset.keywordScore ? Number(btn.dataset.keywordScore) : null;
+                const semanticScore = btn.dataset.semanticScore ? Number(btn.dataset.semanticScore) : null;
+                const combinedScore = btn.dataset.combinedScore ? Number(btn.dataset.combinedScore) : null;
+                if (!docId) {
+                    console.warn('Feedback button clicked without docId, skipping');
+                    return;
+                }
+                this.sendFeedback(docId, rank, feedbackType === 'positive', {
+                    keyword_score: keywordScore,
+                    semantic_score: semanticScore,
+                    combined_score: combinedScore
+                });
+            });
+        });
+    }
+
+    async sendFeedback(docId, rank, isPositive, scoreInfo = {}) {
+        try {
+            const query = document.getElementById('searchInput').value.trim();
+            const payload = {
+                doc_id: docId,
+                rank: rank,
+                positive: isPositive,  // true for positive, false for negative
+                query: query,
+                filters: this.activeFilters,
+                keyword_score: scoreInfo.keyword_score,
+                semantic_score: scoreInfo.semantic_score,
+                combined_score: scoreInfo.combined_score,
+                timestamp: new Date().toISOString()
+            };
+            // Log locally in console for debugging
+            console.log('Sending feedback:', payload);
+            await fetch('http://localhost:8888/feedback/log', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            // Online learning: 更新本地反馈统计并立即调整排序
+            if (!this.feedbackStats) this.feedbackStats = {};
+            if (docId) {
+                // Initialize feedback stats for this document if needed
+                if (!this.feedbackStats[docId]) {
+                    this.feedbackStats[docId] = {positive: 0, negative: 0};
+                }
+                // Increment the appropriate counter
+                if (isPositive) {
+                    this.feedbackStats[docId].positive = (this.feedbackStats[docId].positive || 0) + 1;
+                } else {
+                    this.feedbackStats[docId].negative = (this.feedbackStats[docId].negative || 0) + 1;
+                }
+                
+                // Save to localStorage for persistence across page refreshes
+                this.saveFeedbackStats();
+            }
+            // Re-sort and re-display results with updated feedback
+            this.sortArticles();
+            this.displayResults();
+        } catch (error) {
+            console.error('Error sending feedback:', error);
+        }
     }
     
     handleTagClick(filterType, filterValue) {

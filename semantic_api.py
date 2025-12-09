@@ -61,56 +61,104 @@ class SemanticAPIHandler(BaseHTTPRequestHandler):
     def do_POST(self):
         """Handle POST requests for semantic search"""
         try:
-            if self.path != '/semantic/rerank':
+            if self.path == '/semantic/rerank':
+                # Hybrid search: rerank Solr results
+                content_length = int(self.headers['Content-Length'])
+                post_data = self.rfile.read(content_length)
+                request_data = json.loads(post_data.decode('utf-8'))
+                
+                query = request_data.get('query', '')
+                candidates = request_data.get('candidates', [])
+                top_k = request_data.get('top_k', 10)
+                keyword_weight = request_data.get('keyword_weight', 0.6)
+                semantic_weight = request_data.get('semantic_weight', 0.4)
+                
+                if not self.__class__._semantic_search:
+                    # Return candidates as-is if semantic search not available
+                    response = {
+                        'success': False,
+                        'message': 'Semantic search not available',
+                        'results': candidates[:top_k]
+                    }
+                else:
+                    # Perform semantic reranking
+                    results = self.__class__._semantic_search.search(
+                        query, candidates, top_k, keyword_weight, semantic_weight
+                    )
+                    response = {
+                        'success': True,
+                        'results': results
+                    }
+                
+                # Send response
+                self.send_response(200)
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.send_header('Content-Type', 'application/json')
+                self.end_headers()
+                self.wfile.write(json.dumps(response).encode('utf-8'))
+                
+            elif self.path == '/semantic/search':
+                # Pure semantic search: search from all documents
+                content_length = int(self.headers['Content-Length'])
+                post_data = self.rfile.read(content_length)
+                request_data = json.loads(post_data.decode('utf-8'))
+                
+                query = request_data.get('query', '')
+                all_docs = request_data.get('all_docs', [])
+                top_k = request_data.get('top_k', 10)
+                
+                if not self.__class__._semantic_search:
+                    response = {
+                        'success': False,
+                        'message': 'Semantic search not available',
+                        'results': []
+                    }
+                else:
+                    try:
+                        # Perform pure semantic search
+                        results = self.__class__._semantic_search.pure_semantic_search(
+                            query, all_docs, top_k
+                        )
+                        response = {
+                            'success': True,
+                            'results': results
+                        }
+                    except Exception as search_error:
+                        # Log the full error with traceback
+                        import traceback
+                        error_trace = traceback.format_exc()
+                        print(f"Error in pure_semantic_search: {search_error}", file=sys.stderr)
+                        print(error_trace, file=sys.stderr)
+                        raise  # Re-raise to be caught by outer exception handler
+                
+                # Send response
+                self.send_response(200)
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.send_header('Content-Type', 'application/json')
+                self.end_headers()
+                self.wfile.write(json.dumps(response).encode('utf-8'))
+            else:
                 self.send_response(404)
                 self.end_headers()
                 return
             
-            content_length = int(self.headers['Content-Length'])
-            post_data = self.rfile.read(content_length)
-            request_data = json.loads(post_data.decode('utf-8'))
-            
-            query = request_data.get('query', '')
-            candidates = request_data.get('candidates', [])
-            top_k = request_data.get('top_k', 10)
-            keyword_weight = request_data.get('keyword_weight', 0.6)
-            semantic_weight = request_data.get('semantic_weight', 0.4)
-            
-            if not self.__class__._semantic_search:
-                # Return candidates as-is if semantic search not available
-                response = {
-                    'success': False,
-                    'message': 'Semantic search not available',
-                    'results': candidates[:top_k]
-                }
-            else:
-                # Perform semantic reranking
-                results = self.__class__._semantic_search.search(
-                    query, candidates, top_k, keyword_weight, semantic_weight
-                )
-                response = {
-                    'success': True,
-                    'results': results
-                }
-            
-            # Send response
-            self.send_response(200)
-            self.send_header('Access-Control-Allow-Origin', '*')
-            self.send_header('Content-Type', 'application/json')
-            self.end_headers()
-            self.wfile.write(json.dumps(response).encode('utf-8'))
-            
         except Exception as e:
+            # Log full error with traceback
+            import traceback
+            error_trace = traceback.format_exc()
+            print(f"Error in semantic API: {e}", file=sys.stderr)
+            print(error_trace, file=sys.stderr)
+            
             self.send_response(500)
             self.send_header('Access-Control-Allow-Origin', '*')
             self.send_header('Content-Type', 'application/json')
             self.end_headers()
             error_response = json.dumps({
                 'success': False,
-                'error': str(e)
+                'error': str(e),
+                'error_type': type(e).__name__
             }).encode('utf-8')
             self.wfile.write(error_response)
-            print(f"Error in semantic API: {e}", file=sys.stderr)
     
     def do_GET(self):
         """Handle GET requests - check if semantic search is available"""
@@ -147,6 +195,7 @@ def main():
     print("Endpoints:")
     print("  GET  /semantic/status - Check if semantic search is available")
     print("  POST /semantic/rerank - Rerank search results using semantic similarity")
+    print("  POST /semantic/search - Pure semantic search from all documents")
     print("Press Ctrl+C to stop")
     try:
         server.serve_forever()
