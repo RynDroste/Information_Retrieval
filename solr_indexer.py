@@ -113,6 +113,10 @@ class SolrIndexer:
         if 'price_range' in article and article['price_range']:
             doc['price_range'] = article['price_range']
         
+        # Add primary image URL if available
+        if 'image_url' in article and article['image_url']:
+            doc['image_url'] = article['image_url']
+        
         return doc
     
     def index_articles(self, clear_existing=True):

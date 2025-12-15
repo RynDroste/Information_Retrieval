@@ -208,6 +208,13 @@ class DataCleaner:
             'section': article.get('section', '').strip()
         }
         
+        # Preserve first image URL if available
+        if 'images' in article and article.get('images'):
+            # Use the first image as the primary image URL
+            first_image = article.get('images')[0]
+            if first_image:
+                cleaned['image_url'] = first_image.strip()
+        
         # Preserve optional fields
         if 'date' in article and article.get('date'):
             cleaned['date'] = article.get('date', '').strip()

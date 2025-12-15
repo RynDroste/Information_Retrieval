@@ -39,7 +39,26 @@
                     </div>
                     <div id="priceTags" class="tag-group">
                         <span class="tag-group-label">Price:</span>
-                        <div class="tag-list" id="priceTagList"></div>
+                        <div class="price-input-container">
+                            <input 
+                                type="number" 
+                                id="minPriceInput" 
+                                class="price-input" 
+                                placeholder="Min (¥)"
+                                min="0"
+                                step="100"
+                            >
+                            <span class="price-separator">-</span>
+                            <input 
+                                type="number" 
+                                id="maxPriceInput" 
+                                class="price-input" 
+                                placeholder="Max (¥)"
+                                min="0"
+                                step="100"
+                            >
+                            <button id="applyPriceFilter" class="price-filter-btn">Apply</button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -54,6 +73,8 @@
                 <option value="relevance">Sort by Relevance</option>
                 <option value="title-asc">Title (A-Z)</option>
                 <option value="category">Category</option>
+                <option value="price-asc">Price (Low to High)</option>
+                <option value="price-desc">Price (High to Low)</option>
             </select>
         </div>
 

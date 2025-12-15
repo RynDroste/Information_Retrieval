@@ -1,7 +1,7 @@
 class ArticleSearch {
     constructor() {
         this.filteredArticles = [];
-        this.activeFilters = { section: null, category: null, tag: null, priceRange: null };
+        this.activeFilters = { section: null, category: null, tag: null, minPrice: null, maxPrice: null };
         this.solrUrl = 'http://localhost:8888/solr/RamenProject/select';
         this.semanticApiUrl = 'http://localhost:8889';
         this.semanticSearchAvailable = false;
@@ -95,6 +95,65 @@ class ArticleSearch {
         });
         const clearBtn = document.getElementById('clearFilters');
         if (clearBtn) clearBtn.addEventListener('click', () => this.clearAllFilters());
+        
+        // Price filter inputs
+        const minPriceInput = document.getElementById('minPriceInput');
+        const maxPriceInput = document.getElementById('maxPriceInput');
+        const applyPriceBtn = document.getElementById('applyPriceFilter');
+        
+        if (applyPriceBtn) {
+            applyPriceBtn.addEventListener('click', () => this.applyPriceFilter());
+        }
+        
+        // Allow Enter key to apply price filter
+        if (minPriceInput) {
+            minPriceInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') this.applyPriceFilter();
+            });
+        }
+        if (maxPriceInput) {
+            maxPriceInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') this.applyPriceFilter();
+            });
+        }
+    }
+    
+    applyPriceFilter() {
+        const minPriceInput = document.getElementById('minPriceInput');
+        const maxPriceInput = document.getElementById('maxPriceInput');
+        
+        const minPrice = minPriceInput ? parseFloat(minPriceInput.value) : null;
+        const maxPrice = maxPriceInput ? parseFloat(maxPriceInput.value) : null;
+        
+        // Validate inputs
+        if (minPrice !== null && isNaN(minPrice)) {
+            alert('Please enter a valid minimum price');
+            return;
+        }
+        if (maxPrice !== null && isNaN(maxPrice)) {
+            alert('Please enter a valid maximum price');
+            return;
+        }
+        if (minPrice !== null && minPrice < 0) {
+            alert('Minimum price cannot be negative');
+            return;
+        }
+        if (maxPrice !== null && maxPrice < 0) {
+            alert('Maximum price cannot be negative');
+            return;
+        }
+        if (minPrice !== null && maxPrice !== null && minPrice > maxPrice) {
+            alert('Minimum price cannot be greater than maximum price');
+            return;
+        }
+        
+        // Update filters
+        this.activeFilters.minPrice = minPrice !== null && !isNaN(minPrice) ? minPrice : null;
+        this.activeFilters.maxPrice = maxPrice !== null && !isNaN(maxPrice) ? maxPrice : null;
+        
+        // Update display and perform search
+        this.updateActiveFiltersDisplay();
+        this.performSearchWithFilters();
     }
 
     getFieldValue(field, defaultValue = '') {
@@ -105,6 +164,50 @@ class ArticleSearch {
     getFieldArray(field, defaultValue = []) {
         if (!field) return defaultValue;
         return Array.isArray(field) ? field.map(String) : [String(field)];
+    }
+    
+    extractPriceValue(priceText) {
+        /**
+         * Extract numeric price value from price string (e.g., "¥3,580" -> 3580)
+         */
+        if (!priceText) return null;
+        const priceStr = String(priceText).trim();
+        // Remove currency symbols and extract numbers
+        const numbers = priceStr.replace(/[¥￥$,]/g, '');
+        const priceValue = parseFloat(numbers);
+        return isNaN(priceValue) ? null : priceValue;
+    }
+    
+    filterByPrice(docs) {
+        /**
+         * Filter documents by price range (minPrice and maxPrice)
+         */
+        const minPrice = this.activeFilters.minPrice;
+        const maxPrice = this.activeFilters.maxPrice;
+        
+        return docs.filter(doc => {
+            const priceText = this.getFieldValue(doc.price);
+            if (!priceText) {
+                // If no price, exclude if both min and max are specified
+                // Otherwise include (allowing items without price)
+                return minPrice === null || maxPrice === null;
+            }
+            
+            const priceValue = this.extractPriceValue(priceText);
+            if (priceValue === null) {
+                return minPrice === null || maxPrice === null;
+            }
+            
+            // Check if price is within range
+            if (minPrice !== null && priceValue < minPrice) {
+                return false;
+            }
+            if (maxPrice !== null && priceValue > maxPrice) {
+                return false;
+            }
+            
+            return true;
+        });
     }
 
     /**
@@ -234,10 +337,10 @@ class ArticleSearch {
                 queryParts.push(`tags:"${tagValue}"`);
             }
         }
-        if (this.activeFilters.priceRange) {
-            const val = this.activeFilters.priceRange.trim().replace(/[+\-&|!(){}[\]^"~*?:\\]/g, '\\$&');
-            queryParts.push(`price_range:"${val}"`);
-        }
+        // Price range filter - filter by actual price values
+        // Note: We'll filter by price values in JavaScript after getting results from Solr
+        // because Solr stores price as string (e.g., "¥3,580") and price_range as category
+        // For now, we'll handle price filtering in the frontend after getting results
         const searchQuery = searchText ? searchText.replace(/[+\-&|!(){}[\]^"~*?:\\]/g, '\\$&') : '';
         if (queryParts.length === 0) return searchQuery || '*:*';
         const filterQuery = queryParts.join(' AND ');
@@ -306,6 +409,7 @@ class ArticleSearch {
             price: this.getFieldValue(doc.price),
             price_range: this.getFieldValue(doc.price_range),
             tags: this.getFieldArray(doc.tags),
+            image_url: this.getFieldValue(doc.image_url),  // Add image_url field
             // 分数字段：来自 Solr 和语义 rerank（如果启用）
             keyword_score: (doc.keyword_score !== undefined && doc.keyword_score !== null) ? Number(doc.keyword_score) : null,
             semantic_score: (doc.semantic_score !== undefined && doc.semantic_score !== null) ? Number(doc.semantic_score) : null,
@@ -491,6 +595,11 @@ class ArticleSearch {
 
             let docs = data.response?.docs || [];
             
+            // Apply price filter if specified
+            if (this.activeFilters.minPrice !== null || this.activeFilters.maxPrice !== null) {
+                docs = this.filterByPrice(docs);
+            }
+            
             // Calculate keyword_score for all documents (independent of semantic search)
             docs = this.addKeywordScores(docs);
             
@@ -528,7 +637,56 @@ class ArticleSearch {
                         const allDocsData = await allDocsResponse.json();
                         const allDocs = allDocsData.response?.docs || [];
                         if (allDocs.length > 0) {
-                            docs = await this.pureSemanticSearch(originalQuery, allDocs);
+                            // Apply current filters to allDocs before semantic search (especially tag/price filters)
+                            const filteredAllDocs = allDocs.filter(doc => {
+                                // Section filter
+                                if (this.activeFilters.section && this.getFieldValue(doc.section) !== this.activeFilters.section) {
+                                    return false;
+                                }
+                                // Category filter
+                                if (this.activeFilters.category && this.getFieldValue(doc.menu_category) !== this.activeFilters.category) {
+                                    return false;
+                                }
+                                // Tag filter
+                                if (this.activeFilters.tag) {
+                                    const tags = this.getFieldArray(doc.tags).map(t => t.toLowerCase());
+                                    if (!tags.includes(this.activeFilters.tag.toLowerCase())) return false;
+                                }
+                                // Price filter (minPrice and maxPrice)
+                                if (this.activeFilters.minPrice !== null || this.activeFilters.maxPrice !== null) {
+                                    const priceText = this.getFieldValue(doc.price);
+                                    if (!priceText) {
+                                        // If no price, exclude if both min and max are specified
+                                        if (this.activeFilters.minPrice !== null && this.activeFilters.maxPrice !== null) {
+                                            return false;
+                                        }
+                                    } else {
+                                        const priceValue = this.extractPriceValue(priceText);
+                                        if (priceValue === null) {
+                                            if (this.activeFilters.minPrice !== null && this.activeFilters.maxPrice !== null) {
+                                                return false;
+                                            }
+                                        } else {
+                                            if (this.activeFilters.minPrice !== null && priceValue < this.activeFilters.minPrice) {
+                                                return false;
+                                            }
+                                            if (this.activeFilters.maxPrice !== null && priceValue > this.activeFilters.maxPrice) {
+                                                return false;
+                                            }
+                                        }
+                                    }
+                                }
+                                return true;
+                            });
+
+                            const docsForSemantic = filteredAllDocs.length > 0 ? filteredAllDocs : allDocs;
+                            if (filteredAllDocs.length === 0) {
+                                console.warn('No documents matched active filters for pure semantic search; falling back to all documents.');
+                            } else {
+                                console.log(`Applying filters to pure semantic search: ${filteredAllDocs.length} docs match active filters`);
+                            }
+
+                            docs = await this.pureSemanticSearch(originalQuery, docsForSemantic);
                             console.log(`%c✓ Pure semantic search completed`, 'color: green;', `(${docs.length} results)`);
                         }
                     }
@@ -869,8 +1027,34 @@ class ArticleSearch {
                 return catA !== catB ? catA.localeCompare(catB) : 
                     (a.title || '').toLowerCase().localeCompare((b.title || '').toLowerCase());
             });
+        } else if (sortBy === 'price-asc') {
+            // Sort by price ascending (low to high)
+            this.filteredArticles.sort((a, b) => {
+                const priceA = this.extractPriceValue(a.price);
+                const priceB = this.extractPriceValue(b.price);
+                // Items without price go to the end
+                if (priceA === null && priceB === null) return 0;
+                if (priceA === null) return 1;
+                if (priceB === null) return -1;
+                // Sort by price, then by title if prices are equal
+                return priceA !== priceB ? priceA - priceB : 
+                    (a.title || '').toLowerCase().localeCompare((b.title || '').toLowerCase());
+            });
+        } else if (sortBy === 'price-desc') {
+            // Sort by price descending (high to low)
+            this.filteredArticles.sort((a, b) => {
+                const priceA = this.extractPriceValue(a.price);
+                const priceB = this.extractPriceValue(b.price);
+                // Items without price go to the end
+                if (priceA === null && priceB === null) return 0;
+                if (priceA === null) return 1;
+                if (priceB === null) return -1;
+                // Sort by price descending, then by title if prices are equal
+                return priceA !== priceB ? priceB - priceA : 
+                    (a.title || '').toLowerCase().localeCompare((b.title || '').toLowerCase());
+            });
         } else {
-            // 默认按“综合相关度”排序：基础分数 + 用户正反馈增益
+            // 默认按"综合相关度"排序：基础分数 + 用户正反馈增益
             this.filteredArticles.sort((a, b) => this.getEffectiveScore(b) - this.getEffectiveScore(a));
         }
     }
@@ -944,37 +1128,52 @@ class ArticleSearch {
             const semanticScore = (article.semantic_score !== undefined && article.semantic_score !== null) ? Number(article.semantic_score) : null;
             const combinedScore = (article.combined_score !== undefined && article.combined_score !== null) ? Number(article.combined_score) : null;
             
+            // Image display - show image if available
+            const imageDisplay = article.image_url 
+                ? `<div class="article-image-container">
+                     <img src="${this.escapeHtml(article.image_url)}" 
+                          alt="${this.escapeHtml(article.title)}" 
+                          class="article-image"
+                          onerror="this.style.display='none'">
+                   </div>`
+                : '';
+            
             return `<div class="article-card">
-                <div class="article-header">
-                    <h2><a href="${detailLink}">${this.highlightText(article.title, queryWords)}</a></h2>
-                    ${priceDisplay}
-                </div>
-                ${categoryLine}${tagsLine}
-                <div class="article-meta">
-                    ${article.menu_item && article.menu_item !== article.title ? `<span>🍜 ${article.menu_item}</span>` : ''}
-                    ${article.store_name ? `<span>📍 ${article.store_name}</span>` : ''}
-                    ${article.date ? `<span>📅 ${this.formatDate(article.date)}</span>` : ''}
-                </div>
-                <div class="article-content">${this.getContentPreview(article.content, queryWords, 300)}</div>
-                <div class="feedback-buttons">
-                    <button class="feedback-btn feedback-positive"
-                            data-doc-id="${this.escapeHtml(article.id || '')}"
-                            data-rank="${rank}"
-                            data-feedback-type="positive"
-                            data-keyword-score="${keywordScore !== null ? keywordScore : ''}"
-                            data-semantic-score="${semanticScore !== null ? semanticScore : ''}"
-                            data-combined-score="${combinedScore !== null ? combinedScore : ''}">
-                        👍 Useful
-                    </button>
-                    <button class="feedback-btn feedback-negative"
-                            data-doc-id="${this.escapeHtml(article.id || '')}"
-                            data-rank="${rank}"
-                            data-feedback-type="negative"
-                            data-keyword-score="${keywordScore !== null ? keywordScore : ''}"
-                            data-semantic-score="${semanticScore !== null ? semanticScore : ''}"
-                            data-combined-score="${combinedScore !== null ? combinedScore : ''}">
-                        👎 Not useful
-                    </button>
+                <div class="article-body-wrapper">
+                    ${imageDisplay}
+                    <div class="article-content-wrapper">
+                        <div class="article-header">
+                            <h2><a href="${detailLink}">${this.highlightText(article.title, queryWords)}</a></h2>
+                            ${priceDisplay}
+                        </div>
+                        ${categoryLine}${tagsLine}
+                        <div class="article-meta">
+                            ${article.menu_item && article.menu_item !== article.title ? `<span>🍜 ${article.menu_item}</span>` : ''}
+                            ${article.store_name ? `<span>📍 ${article.store_name}</span>` : ''}
+                            ${article.date ? `<span>📅 ${this.formatDate(article.date)}</span>` : ''}
+                        </div>
+                        <div class="article-content">${this.getContentPreview(article.content, queryWords, 300)}</div>
+                        <div class="feedback-buttons">
+                            <button class="feedback-btn feedback-positive"
+                                    data-doc-id="${this.escapeHtml(article.id || '')}"
+                                    data-rank="${rank}"
+                                    data-feedback-type="positive"
+                                    data-keyword-score="${keywordScore !== null ? keywordScore : ''}"
+                                    data-semantic-score="${semanticScore !== null ? semanticScore : ''}"
+                                    data-combined-score="${combinedScore !== null ? combinedScore : ''}">
+                                👍 Useful
+                            </button>
+                            <button class="feedback-btn feedback-negative"
+                                    data-doc-id="${this.escapeHtml(article.id || '')}"
+                                    data-rank="${rank}"
+                                    data-feedback-type="negative"
+                                    data-keyword-score="${keywordScore !== null ? keywordScore : ''}"
+                                    data-semantic-score="${semanticScore !== null ? semanticScore : ''}"
+                                    data-combined-score="${combinedScore !== null ? combinedScore : ''}">
+                                👎 Not useful
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>`;
         }).join('');
@@ -1071,7 +1270,12 @@ class ArticleSearch {
     }
     
     clearAllFilters() {
-        this.activeFilters = { section: null, category: null, tag: null, priceRange: null };
+        this.activeFilters = { section: null, category: null, tag: null, minPrice: null, maxPrice: null };
+        // Clear price input fields
+        const minPriceInput = document.getElementById('minPriceInput');
+        const maxPriceInput = document.getElementById('maxPriceInput');
+        if (minPriceInput) minPriceInput.value = '';
+        if (maxPriceInput) maxPriceInput.value = '';
         this.updateActiveFiltersDisplay();
         // Clear search input
         document.getElementById('searchInput').value = '';
@@ -1081,7 +1285,8 @@ class ArticleSearch {
     updateActiveFiltersDisplay() {
         const activeFiltersDiv = document.getElementById('activeFilters');
         const filterTagsDiv = document.getElementById('filterTags');
-        const hasFilters = this.activeFilters.section || this.activeFilters.category || this.activeFilters.tag || this.activeFilters.priceRange;
+        const hasFilters = this.activeFilters.section || this.activeFilters.category || this.activeFilters.tag || 
+                          this.activeFilters.minPrice !== null || this.activeFilters.maxPrice !== null;
         
         if (!hasFilters) {
             activeFiltersDiv.style.display = 'none';
@@ -1091,7 +1296,7 @@ class ArticleSearch {
         activeFiltersDiv.style.display = 'flex';
         filterTagsDiv.innerHTML = '';
         
-        ['section', 'category', 'tag', 'priceRange'].forEach(type => {
+        ['section', 'category', 'tag'].forEach(type => {
             if (this.activeFilters[type]) {
                 const tag = document.createElement('span');
                 tag.className = 'filter-tag';
@@ -1100,8 +1305,6 @@ class ArticleSearch {
                     displayText = `#${this.activeFilters[type]}`;
                 } else if (type === 'section') {
                     displayText = this.getSectionLabel(this.activeFilters[type]);
-                } else if (type === 'priceRange') {
-                    displayText = `💰 ${this.activeFilters[type]}`;
                 } else {
                     displayText = this.activeFilters[type];
                 }
@@ -1114,6 +1317,32 @@ class ArticleSearch {
                 filterTagsDiv.appendChild(tag);
             }
         });
+        
+        // Price filter display
+        if (this.activeFilters.minPrice !== null || this.activeFilters.maxPrice !== null) {
+            const tag = document.createElement('span');
+            tag.className = 'filter-tag';
+            let priceText = '💰 ';
+            if (this.activeFilters.minPrice !== null && this.activeFilters.maxPrice !== null) {
+                priceText += `¥${this.activeFilters.minPrice} - ¥${this.activeFilters.maxPrice}`;
+            } else if (this.activeFilters.minPrice !== null) {
+                priceText += `≥ ¥${this.activeFilters.minPrice}`;
+            } else {
+                priceText += `≤ ¥${this.activeFilters.maxPrice}`;
+            }
+            tag.textContent = priceText;
+            tag.addEventListener('click', () => {
+                this.activeFilters.minPrice = null;
+                this.activeFilters.maxPrice = null;
+                const minPriceInput = document.getElementById('minPriceInput');
+                const maxPriceInput = document.getElementById('maxPriceInput');
+                if (minPriceInput) minPriceInput.value = '';
+                if (maxPriceInput) maxPriceInput.value = '';
+                this.updateActiveFiltersDisplay();
+                this.performSearchWithFilters();
+            });
+            filterTagsDiv.appendChild(tag);
+        }
     }
 
     highlightText(text, queryWords) {
@@ -1188,7 +1417,7 @@ class ArticleSearch {
     async loadAllTags() {
         try {
             const articles = await this.getAllArticles();
-            const categories = new Set(), storeTags = new Set(), sections = new Set(), priceRanges = new Set();
+            const categories = new Set(), storeTags = new Set(), sections = new Set();
             
             // Brand tag mapping: Japanese -> English
             const brandTagMap = {
@@ -1222,7 +1451,6 @@ class ArticleSearch {
                     storeTags.add('kagetsu');
                 }
                 if (article.section) sections.add(article.section);
-                if (article.price_range) priceRanges.add(article.price_range);
             });
             
             // Manually add ippudo tag to store tags (ensure it's always present)
@@ -1259,17 +1487,7 @@ class ArticleSearch {
             })).sort((a, b) => a.label.localeCompare(b.label));
             this.displayTagGroup('sectionTagList', sectionArray, 'section', 'tag-badge', true);
             
-            // Sort price ranges in logical order
-            const priceRangeOrder = ['< ¥1,000', '¥1,000 - ¥2,000', '¥2,000 - ¥3,000', '¥3,000 - ¥5,000', '¥5,000 - ¥10,000', '> ¥10,000'];
-            const sortedPriceRanges = Array.from(priceRanges).sort((a, b) => {
-                const indexA = priceRangeOrder.indexOf(a);
-                const indexB = priceRangeOrder.indexOf(b);
-                if (indexA === -1 && indexB === -1) return a.localeCompare(b);
-                if (indexA === -1) return 1;
-                if (indexB === -1) return -1;
-                return indexA - indexB;
-            });
-            this.displayTagGroup('priceTagList', sortedPriceRanges, 'priceRange', 'tag-badge');
+            // Price filtering is now done via input boxes, no need to display price tags
         } catch (error) {
             console.error('Error loading tags:', error);
         }

@@ -263,6 +263,71 @@ header h1 {
     flex: 1;
 }
 
+.price-input-container {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex: 1;
+    flex-wrap: wrap;
+}
+
+.price-input {
+    padding: 8px 12px;
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
+    font-size: 13px;
+    width: 120px;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.price-input:focus {
+    outline: none;
+    border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.price-separator {
+    font-size: 14px;
+    color: #666;
+    font-weight: 500;
+}
+
+.price-filter-btn {
+    padding: 8px 16px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.price-filter-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(102, 126, 234, 0.3);
+}
+
+.price-filter-btn:active {
+    transform: translateY(0);
+}
+
+@media (max-width: 768px) {
+    .price-input-container {
+        width: 100%;
+    }
+    
+    .price-input {
+        flex: 1;
+        min-width: 100px;
+    }
+    
+    .price-filter-btn {
+        width: 100%;
+    }
+}
+
 .search-box {
     display: flex;
     gap: 10px;
@@ -449,6 +514,40 @@ header h1 {
     box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1);
 }
 
+.article-body-wrapper {
+    display: flex;
+    gap: 20px;
+    align-items: flex-start;
+}
+
+.article-image-container {
+    flex-shrink: 0;
+    width: 150px;
+    height: 150px;
+    border-radius: 8px;
+    overflow: hidden;
+    background: #f8f9fa;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.article-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.3s;
+}
+
+.article-card:hover .article-image {
+    transform: scale(1.05);
+}
+
+.article-content-wrapper {
+    flex: 1;
+    min-width: 0;
+}
+
 .article-header {
     display: flex;
     justify-content: space-between;
@@ -545,6 +644,17 @@ header h1 {
 
     .article-card {
         padding: 20px;
+    }
+    
+    .article-body-wrapper {
+        flex-direction: column;
+        gap: 15px;
+    }
+    
+    .article-image-container {
+        width: 100%;
+        height: 200px;
+        align-self: center;
     }
     
     .article-header {

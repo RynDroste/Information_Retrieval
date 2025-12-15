@@ -48,6 +48,7 @@
   
   <field name="id" type="string" indexed="true" stored="true" required="true" multiValued="false" />
   <field name="url" type="string" indexed="true" stored="true" multiValued="false" />
+  <field name="image_url" type="string" indexed="false" stored="true" multiValued="false" />
   <field name="title" type="text_synonym" indexed="true" stored="true" multiValued="false" />
   <field name="content" type="text_synonym" indexed="true" stored="true" multiValued="false" />
   <field name="section" type="string" indexed="true" stored="true" multiValued="false" />
