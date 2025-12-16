@@ -158,7 +158,7 @@ class SemanticSearch:
             Re-ranked documents
         """
         return self.search(query, candidates, top_k, keyword_weight=0.3, semantic_weight=0.7)
-    
+
     def pure_semantic_search(self, query: str, all_docs: List[Dict], top_k: int = 10) -> List[Dict]:
         """
         Pure semantic search: search from all documents using only semantic similarity

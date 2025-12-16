@@ -54,7 +54,7 @@ Test the system's price filtering and tag filtering capabilities. First search f
 
 ### Query
 ```
-1000元以下的
+prices below 1000 JPY
 ```
 
 ### Filter Conditions
@@ -119,80 +119,6 @@ Test the system's cross-language semantic understanding capability for single-ch
    - Whether the ranking is reasonable
    - Whether the detail page content is accurate and complete
    - Whether the detail page contains expected pork-related information
-
----
-
-## Evaluation Results Recording Tables
-
-### Task 1: Keyword Combination Search (yuzu ramen)
-
-| Rank | Title | Relevance (👍/👎) | Notes |
-|------|-------|-------------------|-------|
-| 1    |       |                   |       |
-| 2    |       |                   |       |
-| 3    |       |                   |       |
-| 4    |       |                   |       |
-| 5    |       |                   |       |
-| 6    |       |                   |       |
-| 7    |       |                   |       |
-| 8    |       |                   |       |
-| 9    |       |                   |       |
-| 10   |       |                   |       |
-
-**Overall Evaluation**:
-- Were expected yuzu ramen products found? □ Yes □ No
-- Do results contain both yuzu and ramen? □ Yes □ No
-- Is the ranking reasonable? □ Yes □ No
-- System Performance Score (1-5): _____
-
----
-
-### Task 2: Price Filter + Tag Filter (Below 1000 yen + noodles tag)
-
-| Rank | Title | Price | Tag | Relevance (👍/👎) | Detail Page Accuracy | Notes |
-|------|-------|-------|-----|-------------------|---------------------|-------|
-| 1    |       |       |     |                   |                     |       |
-| 2    |       |       |     |                   |                     |       |
-| 3    |       |       |     |                   |                     |       |
-| 4    |       |       |     |                   |                     |       |
-| 5    |       |       |     |                   |                     |       |
-| 6    |       |       |     |                   |                     |       |
-| 7    |       |       |     |                   |                     |       |
-| 8    |       |       |     |                   |                     |       |
-| 9    |       |       |     |                   |                     |       |
-| 10   |       |       |     |                   |                     |       |
-
-**Overall Evaluation**:
-- Are all results priced below 1000 yen? □ Yes □ No
-- Do all results contain the "noodles" tag? □ Yes □ No
-- Do price filtering and tag filtering work simultaneously? □ Yes □ No
-- Is the detail page content accurate? □ Yes □ No
-- Is the ranking reasonable? □ Yes □ No
-- System Performance Score (1-5): _____
-
----
-
-### Task 3: Cross-Language Semantic Search + Content Review (豚)
-
-| Rank | Title | Relevance (👍/👎) | Detail Page Accuracy | Contains Pork Info | Notes |
-|------|-------|-------------------|---------------------|-------------------|-------|
-| 1    |       |                   |                     |                   |       |
-| 2    |       |                   |                     |                   |       |
-| 3    |       |                   |                     |                   |       |
-| 4    |       |                   |                     |                   |       |
-| 5    |       |                   |                     |                   |       |
-| 6    |       |                   |                     |                   |       |
-| 7    |       |                   |                     |                   |       |
-| 8    |       |                   |                     |                   |       |
-| 9    |       |                   |                     |                   |       |
-| 10   |       |                   |                     |                   |       |
-
-**Overall Evaluation**:
-- Was expected pork-related content found? □ Yes □ No
-- Is the detail page content accurate and complete? □ Yes □ No
-- Does the detail page contain pork-related information? □ Yes □ No
-- Is the ranking reasonable? □ Yes □ No
-- System Performance Score (1-5): _____
 
 ---
 

@@ -63,39 +63,39 @@ class SemanticAPIHandler(BaseHTTPRequestHandler):
         try:
             if self.path == '/semantic/rerank':
                 # Hybrid search: rerank Solr results
-                content_length = int(self.headers['Content-Length'])
-                post_data = self.rfile.read(content_length)
-                request_data = json.loads(post_data.decode('utf-8'))
-                
-                query = request_data.get('query', '')
-                candidates = request_data.get('candidates', [])
-                top_k = request_data.get('top_k', 10)
-                keyword_weight = request_data.get('keyword_weight', 0.6)
-                semantic_weight = request_data.get('semantic_weight', 0.4)
-                
-                if not self.__class__._semantic_search:
-                    # Return candidates as-is if semantic search not available
-                    response = {
-                        'success': False,
-                        'message': 'Semantic search not available',
-                        'results': candidates[:top_k]
-                    }
-                else:
-                    # Perform semantic reranking
-                    results = self.__class__._semantic_search.search(
-                        query, candidates, top_k, keyword_weight, semantic_weight
-                    )
-                    response = {
-                        'success': True,
-                        'results': results
-                    }
-                
-                # Send response
-                self.send_response(200)
-                self.send_header('Access-Control-Allow-Origin', '*')
-                self.send_header('Content-Type', 'application/json')
-                self.end_headers()
-                self.wfile.write(json.dumps(response).encode('utf-8'))
+            content_length = int(self.headers['Content-Length'])
+            post_data = self.rfile.read(content_length)
+            request_data = json.loads(post_data.decode('utf-8'))
+            
+            query = request_data.get('query', '')
+            candidates = request_data.get('candidates', [])
+            top_k = request_data.get('top_k', 10)
+            keyword_weight = request_data.get('keyword_weight', 0.6)
+            semantic_weight = request_data.get('semantic_weight', 0.4)
+            
+            if not self.__class__._semantic_search:
+                # Return candidates as-is if semantic search not available
+                response = {
+                    'success': False,
+                    'message': 'Semantic search not available',
+                    'results': candidates[:top_k]
+                }
+            else:
+                # Perform semantic reranking
+                results = self.__class__._semantic_search.search(
+                    query, candidates, top_k, keyword_weight, semantic_weight
+                )
+                response = {
+                    'success': True,
+                    'results': results
+                }
+            
+            # Send response
+            self.send_response(200)
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.send_header('Content-Type', 'application/json')
+            self.end_headers()
+            self.wfile.write(json.dumps(response).encode('utf-8'))
                 
             elif self.path == '/semantic/search':
                 # Pure semantic search: search from all documents
