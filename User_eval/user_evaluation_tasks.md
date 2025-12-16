@@ -73,7 +73,7 @@ prices below 1000 JPY
 4. **Result Relevance**: Whether returned results are all noodles-related and meet the price requirement
 
 ### Evaluation Steps
-1. Enter in the search box: `1000元以下的`
+1. Enter in the search box: `0 ～ 1000`
 2. Click the price filter and select "< ¥1,000"
 3. Click the tag filter and select "#noodles"
 4. Review the top 10 returned results

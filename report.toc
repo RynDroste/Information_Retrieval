@@ -30,6 +30,5 @@
 \contentsline {subsubsection}{\numberline {3.2.3}Task 3: Cross-Language Semantic Search}{8}{subsubsection.3.2.3}%
 \contentsline {subsubsection}{\numberline {3.2.4}Overall System Performance}{8}{subsubsection.3.2.4}%
 \contentsline {subsubsection}{\numberline {3.2.5}User Experience Questionnaire (UEQ) Results}{9}{subsubsection.3.2.5}%
-\contentsline {section}{\numberline {4}Conclusion}{10}{section.4}%
-\contentsline {subsection}{\numberline {4.1}Technical Achievements}{10}{subsection.4.1}%
-\contentsline {subsection}{\numberline {4.2}User Experience Achievements}{10}{subsection.4.2}%
+\contentsline {section}{\numberline {4}Conclusion}{9}{section.4}%
+\contentsline {subsection}{\numberline {4.1}User Experience Achievements}{10}{subsection.4.1}%

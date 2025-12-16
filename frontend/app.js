@@ -311,10 +311,10 @@ class ArticleSearch {
         }
         if (this.activeFilters.tag) {
             // Map for brand tag aliases (English -> Japanese)
-            // Note: '花月嵐' and '一風堂' have been removed from data, so only English tags remain
+            // Note: Japanese brand-name tags for Kagetsu Arashi and Ippudo have been removed from data, so only English tags remain
             const brandTagAliases = {
-                'ippudo': ['ippudo'],  // '一風堂' removed from data
-                'kagetsu': ['kagetsu']  // '花月嵐' removed from data
+                'ippudo': ['ippudo'],  // Japanese name for Ippudo removed from data
+                'kagetsu': ['kagetsu']  // Japanese name for Kagetsu Arashi removed from data
             };
             
             const tagValue = this.activeFilters.tag.replace(/"/g, '\\"');
@@ -394,7 +394,7 @@ class ArticleSearch {
     }
 
     parseDocs(docs) {
-        // 保留检索分数信息，方便后续 user evaluation 使用
+        // Keep score information so it can be used later for user evaluation
         return docs.map(doc => ({
             id: doc.id || '',  // Include ID for detail page navigation
             url: this.getFieldValue(doc.url),
@@ -410,7 +410,7 @@ class ArticleSearch {
             price_range: this.getFieldValue(doc.price_range),
             tags: this.getFieldArray(doc.tags),
             image_url: this.getFieldValue(doc.image_url),  // Add image_url field
-            // 分数字段：来自 Solr 和语义 rerank（如果启用）
+            // Score fields: from Solr and semantic rerank (if enabled)
             keyword_score: (doc.keyword_score !== undefined && doc.keyword_score !== null) ? Number(doc.keyword_score) : null,
             semantic_score: (doc.semantic_score !== undefined && doc.semantic_score !== null) ? Number(doc.semantic_score) : null,
             combined_score: (doc.combined_score !== undefined && doc.combined_score !== null) ? Number(doc.combined_score) : null
@@ -903,7 +903,7 @@ class ArticleSearch {
     async pureSemanticSearch(query, allDocs) {
         /**
          * Pure semantic search: search from all documents using only semantic similarity
-         * This is useful for cross-language queries (e.g., "醤油" -> "soy sauce")
+         * This is useful for cross-language queries (e.g., "shoyu" -> "soy sauce")
          */
         try {
             const response = await fetch(`${this.semanticApiUrl}/semantic/search`, {
@@ -1238,7 +1238,7 @@ class ArticleSearch {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
             });
-            // Online learning: 更新本地反馈统计并立即调整排序
+            // Online learning: update local feedback statistics and immediately adjust ranking
             if (!this.feedbackStats) this.feedbackStats = {};
             if (docId) {
                 // Initialize feedback stats for this document if needed

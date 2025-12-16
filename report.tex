@@ -27,7 +27,8 @@
 
 \title{\textbf{Information Retrieval}\\
 Academic year 2025-2026\\
-Course project}
+Course project\\
+Ramen Stores}
 \author{Xuanlin Chen}
 \date{\today}
 
@@ -37,6 +38,8 @@ Course project}
 
 \begin{abstract}
 This report presents a comprehensive information retrieval system designed for searching ramen restaurant items. The system aims to provide users with a platform to search relevant information such as food items in ramen restaurants, store locations, and related details. The system uses Solr API and the LaBSE transformer to implement a hybrid search approach combining traditional keyword-based search with semantic understanding, aiming to understand users' intent beyond simple keyword matching. The semantic model supports English and Japanese languages, and provides intelligent ranking. The IR system has achieved two key features: filtering capabilities and user relevance feedback.
+
+\textbf{Keywords:} information retrieval, hybrid search, semantic search, LaBSE, Solr, cross-language search, ramen menu search
 \end{abstract}
 
 \tableofcontents
@@ -53,7 +56,7 @@ When customers search for ramen restaurant menu items, they face several challen
     
     \item \textbf{Flexible Search Needs}: Customers have diverse search intentions—finding dishes by name, ingredients, price range, or dietary preferences. A single search query needs to be interpreted intelligently to match user intent.
     
-    \item \textbf{Semantic Understanding}: Customers often use descriptive terms (e.g., "spicy ramen") rather than exact menu names. The system should understand meaning, not just match keywords.
+    \item \textbf{Semantic Understanding}: Customers often use descriptive terms rather than exact menu names. The system should understand meaning, not just match keywords.
     
     \item \textbf{Relevance Prioritization}: When many results match a query, customers need the most relevant items ranked first, not just a list of all matches. The system should prioritize results based on relevance, not just keyword frequency.
 \end{itemize}
@@ -135,7 +138,7 @@ The data cleaning process transforms raw scraped data into a consistent, high-qu
     \item \textbf{Price Format Standardization}: Normalizes price formats, handling different currency symbols (¥, yen) and number formats (¥1,000 vs 1000)
     \item \textbf{Encoding Fixes}: Resolves character encoding issues, especially for Japanese characters that may be incorrectly encoded during scraping
     \item \textbf{Image URL Extraction}: Extracts and validates image URLs, selecting the primary image for each menu item
-    \item \textbf{Data Validation}: Removes non-food items (merchandise, utensils, clothing) and ensures required fields are present
+    \item \textbf{Data Validation}: Removes non-food items and ensures required fields are present
     \item \textbf{Text Normalization}: Cleans whitespace, removes special characters, and standardizes text formats
 \end{itemize}
 
@@ -147,13 +150,13 @@ The indexing process transforms cleaned data into a searchable format in Apache 
 
 First, I connect to the Solr instance and verify the connection. Then, cleaned data is loaded from JSON files containing structured menu information. Each article is prepared as a document with fields mapped to Solr schema: title, content, menu\_item, menu\_category, section, store\_name, price, tags, and image\_url. A unique document ID is generated for each item based on its section and title.
 
-Documents are indexed in batches (typically 10 documents per batch) to balance performance and memory usage. After all documents are indexed, changes are committed to Solr, making them immediately searchable. The indexing process also handles errors gracefully, skipping problematic documents and continuing with the rest, ensuring maximum data coverage even if some items fail to index.
+Documents are indexed in batches to balance performance and memory usage. After all documents are indexed, changes are committed to Solr, making them immediately searchable. The indexing process also handles errors gracefully, skipping problematic documents and continuing with the rest, ensuring maximum data coverage even if some items fail to index.
 
 \subsection{Technology Choices for Search Implementation}
 
 \subsubsection{Hybrid Search Integration}
 
-Pure keyword search fails for cross-language queries, while pure semantic search is too slow for real-time use. I need both speed and accuracy. I implement a two-phase search approach combining Solr and LaBSE. I first try fast keyword search. If it returns few results (indicating a cross-language or semantic query), I automatically switch to semantic search. This gives me the best of both worlds: fast responses for common queries and accurate results for difficult queries.
+Pure keyword search fails for cross-language queries, while pure semantic search is too slow for real-time use. I need both speed and accuracy. I implement a two-phase search approach combining Solr and LaBSE. I first try fast keyword search. If it returns few results , I automatically switch to semantic search. This gives me the best of both worlds: fast responses for common queries and accurate results for difficult queries.
 
 \subsubsection{Score Combination Method}
 
@@ -178,7 +181,7 @@ Users can filter results through multiple dimensions simultaneously:
 \begin{itemize}
     \item \textbf{Category Filtering}: Click on category tags (e.g., Ramen, Tsukemen, Noodles) to filter by menu category
     \item \textbf{Store Filtering}: Select store tags to filter by restaurant brand or location
-    \item \textbf{Type Filtering}: Filter by content type (Menu items, Store Information, Brand Information)
+    \item \textbf{Type Filtering}: Filter by content type (Menu items, Store Information)
     \item \textbf{Price Range Filtering}: Users can input custom minimum and maximum price values to filter results within their budget
 \end{itemize}
 
@@ -203,7 +206,7 @@ Users can change sorting options at any time, and results update immediately wit
 Search results are presented as cards showing comprehensive information:
 
 \begin{itemize}
-    \item Product images (when available) displayed alongside each result
+    \item Product images displayed alongside each result
     \item Title with highlighted search terms
     \item Price information
     \item Category and tags
@@ -235,7 +238,7 @@ I designed three evaluation tasks to assess different aspects of the system.\foo
     
     \item \textbf{Task 3: Cross-Language Semantic Search with Content Review}: This task evaluates the system's cross-language semantic understanding capability. By searching with a single Japanese character "豚" (pork), the task tests whether the system can correctly match Japanese queries to English content through semantic understanding. This task also includes content review to assess the accuracy and completeness of detail page information, demonstrating the LaBSE model's effectiveness in bridging language barriers.
     
-    \item \textbf{User Experience Questionnaire (UEQ)}: In addition to task-based evaluation, all three evaluators completed the User Experience Questionnaire (UEQ) to assess the overall user experience of the system.\footnote{UEQ questionnaire items are available at: \url{https://github.com/RynDroste/Information_Retrieval/blob/main/User_eval/UEQS_Items.pdf}} The UEQ is a standardized instrument that measures user experience across eight key dimensions: obstructive/supportive, complicated/easy, inefficient/efficient, confusing/clear, boring/exciting, not interesting/interesting, conventional/inventive, and usual/leading edge. Each dimension is evaluated on a scale from -3 (negative) to +3 (positive), providing comprehensive insights into both pragmatic quality (usability aspects) and hedonic quality (user experience aspects) of the system.
+    \item \textbf{User Experience Questionnaire (UEQ)}: In addition to task-based evaluation, all three evaluators completed the UEQ to assess the overall user experience of the system.\footnote{UEQ questionnaire items are available: \url{https://github.com/RynDroste/Information_Retrieval/blob/main/User_eval/UEQS_Items.pdf}}
 \end{itemize}
 
 \subsection{Evaluation Results}
@@ -256,7 +259,7 @@ Cross-language search achieved successful semantic matching (Japanese "豚" foun
 
 \subsubsection{Overall System Performance}
 
-The overall system performance score is calculated as the average of all three tasks across all evaluators. The comprehensive evaluation results are summarized in Table~\ref{tab:evaluation_results}.
+The overall system performance score is calculated as the average of all three tasks across all evaluators. The comprehensive evaluation results are summarized in Table~\ref{tab:evaluation_results}.\footnote{Detailed evaluation data is available in CSV format: \url{https://github.com/RynDroste/Information_Retrieval/blob/main/User_eval/evaluation_data.csv}}
 
 \begin{table}[H]
 \centering
@@ -277,13 +280,12 @@ Task 3: Cross-Language Semantic Search & 4 & 4 & 4 & 4.0 \\
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.9\textwidth]{evaluation_charts.pdf}
+\includegraphics[width=0.9\textwidth]{User_eval/evaluation_charts.pdf}
 \caption{Evaluation results visualization: (left) Performance scores by task and evaluator, (right) Average performance scores by task and overall system performance}
 \end{figure}
 
 \subsubsection{User Experience Questionnaire (UEQ) Results}
 
-To comprehensively assess the user experience of the system beyond task performance, three evaluators completed the User Experience Questionnaire (UEQ). The UEQ is a standardized instrument that measures user experience across eight key dimensions, each evaluated on a scale from -3 (negative) to +3 (positive). This questionnaire provides insights into both pragmatic quality (usability aspects) and hedonic quality (user experience aspects) of the system. The evaluation results from all three evaluators are summarized in Table~\ref{tab:ueq_results}.
 
 \begin{table}[H]
 \centering
@@ -308,28 +310,11 @@ Usual $\leftrightarrow$ Leading Edge & 3 & 3 & 3 & 3.0 \\
 \label{tab:ueq_results}
 \end{table}
 
-The UEQ evaluation results demonstrate consistently positive user experience across all eight dimensions. The system achieved outstanding performance in several key areas: ease of use (3.0), clarity (3.0), interest level (3.0), and perception as leading-edge technology (3.0). These perfect scores indicate that evaluators found the system highly intuitive and straightforward to use, with exceptionally clear and understandable interfaces. The system was also perceived as highly engaging and innovative, reflecting the advanced semantic search capabilities and modern design approach.
-
-In terms of pragmatic quality, the system scored well in efficiency (2.3) and supportiveness (2.3), indicating that users can accomplish their tasks effectively with minimal obstacles. The hedonic quality dimensions also received strong ratings, with excitement (2.3) and inventiveness (2.3) scores showing that the system is not only functional but also enjoyable to use.
-
-The overall average UEQ score of 2.7 (on a -3 to +3 scale) represents an excellent positive evaluation, placing the system well above the neutral point and approaching the maximum positive rating. This comprehensive assessment confirms that the system successfully combines technical excellence with excellent user experience. The UEQ results are consistent with the task-based evaluation findings, reinforcing the conclusion that the system provides a superior user experience that meets both functional requirements and user expectations.
+The overall average UEQ score of 2.7. The UEQ results are consistent with the task-based evaluation findings, reinforcing the conclusion that the system provides a superior user experience that meets both functional requirements and user expectations.
 
 \section{Conclusion}
 
 A hybrid information retrieval system is successfully designed and implemented. The system combines the speed of keyword search with the intelligence of semantic understanding, enabling accurate search across multiple languages, understanding of user intent beyond keyword matching, intelligent ranking that adapts to query type, and fast response times suitable for real-time use.
-
-Evaluation results demonstrate significant improvements in search accuracy, cross-language capabilities, and user satisfaction. The system is production-ready and can be extended to other domains (e-commerce, document search, etc.) with minimal modifications.
-
-\subsection{Technical Achievements}
-
-The system has achieved several key technical milestones:
-
-\begin{itemize}
-    \item \textbf{Hybrid Search Architecture}: Successfully integrated keyword and semantic search
-    \item \textbf{Cross-Language Support}: Enabled true multilingual search using LaBSE
-    \item \textbf{Intelligent Ranking}: Dynamic Iight adjustment based on query type
-    \item \textbf{Performance}: Maintained fast response times despite added complexity
-\end{itemize}
 
 \subsection{User Experience Achievements}
 
