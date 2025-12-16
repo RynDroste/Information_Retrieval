@@ -1,0 +1,15 @@
+Category,Evaluation Item,Scale,Evaluator 1,Evaluator 2,Evaluator 3,Average
+Task-Based Evaluation,Task 1: Keyword Combination Search,1-5,4,5,4,4.3
+Task-Based Evaluation,Task 2: Price and Tag Filtering,1-5,5,5,5,5.0
+Task-Based Evaluation,Task 3: Cross-Language Semantic Search,1-5,4,4,4,4.0
+Task-Based Evaluation,Overall System Performance,1-5,4.3,4.7,4.3,4.4
+UEQ,Obstructive ↔ Supportive,-3 to +3,2,3,2,2.3
+UEQ,Complicated ↔ Easy,-3 to +3,3,3,3,3.0
+UEQ,Inefficient ↔ Efficient,-3 to +3,2,3,2,2.3
+UEQ,Confusing ↔ Clear,-3 to +3,3,3,3,3.0
+UEQ,Boring ↔ Exciting,-3 to +3,2,3,2,2.3
+UEQ,Not Interesting ↔ Interesting,-3 to +3,3,3,3,3.0
+UEQ,Conventional ↔ Inventive,-3 to +3,2,3,2,2.3
+UEQ,Usual ↔ Leading Edge,-3 to +3,3,3,3,3.0
+UEQ,Overall UEQ Score,-3 to +3,2.5,3.0,2.5,2.7
+
