@@ -294,9 +294,8 @@ class PipelineRunner:
         try:
             scraper = RamenScraper()
             
-            # Scraping from https://afuri.com - only store and brand information
+            # Scraping from https://afuri.com - only store information
             scraper.scrape_store_information()
-            scraper.scrape_brand_info()
             
             # Also scraping from shop.afuri.com
             scraper.scrape_shop_products()

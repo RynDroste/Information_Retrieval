@@ -234,6 +234,8 @@ I designed three evaluation tasks to assess different aspects of the system.\foo
     \item \textbf{Task 2: Price Filter with Tag Filter}: This task evaluates the system's filtering capabilities, specifically testing price range filtering and tag-based filtering. Users search for items priced below 1000 yen and then apply a "noodles" tag filter. This task assesses whether the system can accurately apply multiple filters simultaneously and return results that satisfy all filter conditions, demonstrating the effectiveness of multi-dimensional filtering.
     
     \item \textbf{Task 3: Cross-Language Semantic Search with Content Review}: This task evaluates the system's cross-language semantic understanding capability. By searching with a single Japanese character "豚" (pork), the task tests whether the system can correctly match Japanese queries to English content through semantic understanding. This task also includes content review to assess the accuracy and completeness of detail page information, demonstrating the LaBSE model's effectiveness in bridging language barriers.
+    
+    \item \textbf{User Experience Questionnaire (UEQ)}: In addition to task-based evaluation, all three evaluators completed the User Experience Questionnaire (UEQ) to assess the overall user experience of the system.\footnote{UEQ questionnaire items are available at: \url{https://github.com/RynDroste/Information_Retrieval/blob/main/User_eval/UEQS_Items.pdf}} The UEQ is a standardized instrument that measures user experience across eight key dimensions: obstructive/supportive, complicated/easy, inefficient/efficient, confusing/clear, boring/exciting, not interesting/interesting, conventional/inventive, and usual/leading edge. Each dimension is evaluated on a scale from -3 (negative) to +3 (positive), providing comprehensive insights into both pragmatic quality (usability aspects) and hedonic quality (user experience aspects) of the system.
 \end{itemize}
 
 \subsection{Evaluation Results}
@@ -278,6 +280,39 @@ Task 3: Cross-Language Semantic Search & 4 & 4 & 4 & 4.0 \\
 \includegraphics[width=0.9\textwidth]{evaluation_charts.pdf}
 \caption{Evaluation results visualization: (left) Performance scores by task and evaluator, (right) Average performance scores by task and overall system performance}
 \end{figure}
+
+\subsubsection{User Experience Questionnaire (UEQ) Results}
+
+To comprehensively assess the user experience of the system beyond task performance, three evaluators completed the User Experience Questionnaire (UEQ). The UEQ is a standardized instrument that measures user experience across eight key dimensions, each evaluated on a scale from -3 (negative) to +3 (positive). This questionnaire provides insights into both pragmatic quality (usability aspects) and hedonic quality (user experience aspects) of the system. The evaluation results from all three evaluators are summarized in Table~\ref{tab:ueq_results}.
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabular}{@{}lcccc@{}}
+\toprule
+\textbf{UEQ Dimension} & \textbf{Evaluator 1} & \textbf{Evaluator 2} & \textbf{Evaluator 3} & \textbf{Average} \\
+\midrule
+Obstructive $\leftrightarrow$ Supportive & 2 & 3 & 2 & 2.3 \\
+Complicated $\leftrightarrow$ Easy & 3 & 3 & 3 & 3.0 \\
+Inefficient $\leftrightarrow$ Efficient & 2 & 3 & 2 & 2.3 \\
+Confusing $\leftrightarrow$ Clear & 3 & 3 & 3 & 3.0 \\
+Boring $\leftrightarrow$ Exciting & 2 & 3 & 2 & 2.3 \\
+Not Interesting $\leftrightarrow$ Interesting & 3 & 3 & 3 & 3.0 \\
+Conventional $\leftrightarrow$ Inventive & 2 & 3 & 2 & 2.3 \\
+Usual $\leftrightarrow$ Leading Edge & 3 & 3 & 3 & 3.0 \\
+\midrule
+\textbf{Overall UEQ Score} & \textbf{2.5} & \textbf{3.0} & \textbf{2.5} & \textbf{2.7} \\
+\bottomrule
+\end{tabular}
+\caption{User Experience Questionnaire (UEQ) results (Scale: -3 to +3)}
+\label{tab:ueq_results}
+\end{table}
+
+The UEQ evaluation results demonstrate consistently positive user experience across all eight dimensions. The system achieved outstanding performance in several key areas: ease of use (3.0), clarity (3.0), interest level (3.0), and perception as leading-edge technology (3.0). These perfect scores indicate that evaluators found the system highly intuitive and straightforward to use, with exceptionally clear and understandable interfaces. The system was also perceived as highly engaging and innovative, reflecting the advanced semantic search capabilities and modern design approach.
+
+In terms of pragmatic quality, the system scored well in efficiency (2.3) and supportiveness (2.3), indicating that users can accomplish their tasks effectively with minimal obstacles. The hedonic quality dimensions also received strong ratings, with excitement (2.3) and inventiveness (2.3) scores showing that the system is not only functional but also enjoyable to use.
+
+The overall average UEQ score of 2.7 (on a -3 to +3 scale) represents an excellent positive evaluation, placing the system well above the neutral point and approaching the maximum positive rating. This comprehensive assessment confirms that the system successfully combines technical excellence with excellent user experience. The UEQ results are consistent with the task-based evaluation findings, reinforcing the conclusion that the system provides a superior user experience that meets both functional requirements and user expectations.
 
 \section{Conclusion}
 
